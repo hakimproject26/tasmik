@@ -251,13 +251,16 @@ Untuk menutupnya, ambil **`pasang.sh` dari GitHub** dan **arkib dari
 pelayan LAN**:
 
 ```
-curl -fsSL https://raw.githubusercontent.com/<pengguna>/tasmik/<commit>/alat/pasang.sh \
+curl -fsSL https://raw.githubusercontent.com/hakimproject26/tasmik/c63d542/alat/pasang.sh \
   | bash -s http://192.168.1.10:8001
 ```
 
 GitHub tidak boleh diubah oleh pelayan LAN, jadi kunci yang tertanam dalam
 skrip itu boleh dipercayai — dan pelayan hanya menyediakan arkib, yang
 diperiksa tandatangannya.
+
+Repo: <https://github.com/hakimproject26/tasmik>. Nombor dalam URL itu
+ialah commit SHA — lihat nota 1 di bawah.
 
 **Selepas pemasangan pertama, pelayan tidak lagi berkuasa.** App memeriksa
 sendiri setiap kemas kini.
