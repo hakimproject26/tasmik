@@ -201,9 +201,47 @@ fi
 mkdir -p "$DEST"
 tar xzf "$ARKIB" -C "$HOME"
 echo "  ✓ dipasang ke $DEST"
-echo "  ✓ data guru di ~/.tasmik/ tidak disentuh"
+echo "  ✓ rekod murid di ~/.tasmik/ tidak disentuh"
 
-# --- 8. Alias ----------------------------------------------------------
+# --- 8. Sumber kemas kini ----------------------------------------------
+# Ditulis ke dalam config supaya guru tidak perlu menaip URL yang panjang
+# pada papan kekunci telefon. URL itu senang tersalah taip, dan yang paling
+# menderita ialah guru yang belum kenal app ini.
+#
+# Yang ditulis hanyalah SATU tetapan. Rekod murid tidak pernah disentuh —
+# ia fail yang berbeza sama sekali.
+#
+# Kalau sumber SUDAH ditetapkan, ia DIKEKALKAN. Guru yang menaip sesuatu
+# di Tetapan membuat tindakan yang disengajakan, dan menimpanya secara
+# senyap lebih memudaratkan daripada satu langkah tambahan.
+#
+# Kegagalan di sini TIDAK membatalkan pemasangan: app sudah dipasang dan
+# berfungsi, dan guru boleh menetapkan sumber sendiri di Tetapan ▸ [1].
+if ! "$PY" - "$DEST" "$ASAS" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+from tasmik import kemas, store
+
+sumber = kemas.betulkan(sys.argv[2])
+cfg = store.baca_config()
+lama = (cfg.get("sumber_kemas") or "").strip()
+
+if lama:
+    print(f"  ! Sumber kemas kini sedia ada dikekalkan: {lama}")
+    if lama != sumber:
+        print(f"    Untuk tukar kepada {sumber}, guna Tetapan ▸ [1].")
+else:
+    cfg["sumber_kemas"] = sumber
+    store.simpan_config(cfg)
+    print(f"  ✓ sumber kemas kini ditetapkan: {sumber}")
+PY
+then
+    echo "  ! Tak dapat menetapkan sumber kemas kini."
+    echo "    App tetap berfungsi. Tetapkan sendiri di Tetapan ▸ [1]:"
+    echo "      $ASAS"
+fi
+
+# --- 9. Alias ----------------------------------------------------------
 if ! grep -qs "alias tasmik=" "$HOME/.bashrc"; then
     echo "alias tasmik='$PY $DEST/main.py'" >> "$HOME/.bashrc"
     echo "  ✓ alias 'tasmik' ditambah"
@@ -215,6 +253,12 @@ echo
 echo "  Jalan sekarang:   cd ~/tasmik && $PY main.py"
 echo "  Lain kali:        buka Termux, taip — tasmik"
 echo
-echo "  Untuk kemas kini kemudian, guna menu [7] Kemas kini di dalam app."
-echo "  Tetapkan sumber dahulu di  Tetapan ▸ [1]  →  $ASAS"
+echo "  Untuk kemas kini kemudian, guna menu Kemas kini di dalam app."
+# Sengaja TIDAK menyebut sumber di sini. Langkah 8 di atas sudah
+# melaporkan sama ada ia DITETAPKAN atau DIKEKALKAN, dan kedua-duanya
+# boleh berlaku dengan $ASAS yang sama. Menyebut "$ASAS" di sini akan
+# mendakwa sumber itu GitHub walaupun config masih menyimpan alamat LAN —
+# dan guru yang mempercayai mesej itu tidak akan faham kenapa kemas kini
+# masih mencari laptop.
+echo "  Sumber kemas kini: lihat atau tukar di  Tetapan ▸ [1]"
 echo
