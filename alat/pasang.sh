@@ -37,7 +37,12 @@ ARKIB="$HOME/.tasmik-pasang.tar.gz"
 SIG="$ARKIB.sig"
 PEM="$HOME/.tasmik-pasang.pem"
 
-bersih() { rm -f "$ARKIB" "$SIG" "$PEM" "$ARKIB.mentah"; }
+# Perhatikan "$SIG.mentah", bukan "$ARKIB.mentah". Tandatangan mentah
+# ditulis bersebelahan fail hex-nya, jadi namanya "$SIG" + ".mentah".
+# Versi pertama skrip ini menulis "$ARKIB.mentah" — nama yang tidak
+# pernah wujud — jadi fail itu tertinggal dalam folder rumah guru pada
+# setiap pemasangan, sambil trap ini mendakwa ia sudah bersih.
+bersih() { rm -f "$ARKIB" "$SIG" "$PEM" "$SIG.mentah"; }
 trap bersih EXIT
 
 echo
