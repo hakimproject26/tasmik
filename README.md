@@ -255,7 +255,7 @@ tidak boleh mengubah GitHub.
 boleh dimatikan, dan telefon boleh berada di mana-mana:
 
 ```
-curl -fsSL https://raw.githubusercontent.com/hakimproject26/tasmik/b5a0a55/alat/pasang.sh \
+curl -fsSL https://raw.githubusercontent.com/hakimproject26/tasmik/3627b78/alat/pasang.sh \
   | bash -s https://github.com/hakimproject26/tasmik/releases/latest/download
 ```
 
@@ -266,7 +266,7 @@ rumah anda.
 terbitan terbaharu belum dicermin ke GitHub:
 
 ```
-curl -fsSL https://raw.githubusercontent.com/hakimproject26/tasmik/b5a0a55/alat/pasang.sh \
+curl -fsSL https://raw.githubusercontent.com/hakimproject26/tasmik/3627b78/alat/pasang.sh \
   | bash -s http://192.168.1.10:8001
 ```
 
@@ -282,9 +282,18 @@ beri sebagai argumen terakhir itulah yang ditulis ke config, jadi kemas
 kini seterusnya datang dari tempat yang sama. Tiada langkah kedua, dan
 tiada URL panjang perlu ditaip pada telefon.
 
-Kalau sumber **sudah** ada dalam config, ia **dikekalkan** — pemasang
-akan memberitahu, dan anda boleh menukarnya di `Tetapan ▸ [1]` kalau
-mahu.
+Kalau sumber **sudah** ada dan berbeza, ia **diganti** — pemasang akan
+menunjukkan nilai lama dan baharu supaya anda dapat mengesannya kalau ia
+bukan yang dijangkakan.
+
+Ini disengajakan, dan ia penting untuk kes pemasangan semula: guru yang
+memasang semula dari GitHub untuk melepaskan diri daripada pelayan LAN
+**mesti** berakhir bebas daripada pelayan itu. Kalau sumber lama
+dikekalkan, app akan berjalan pada versi baharu sambil terus mencari
+laptop — dan guru tidak akan tahu sehingga laptop itu dimatikan.
+
+Kalau anda mahu sumber yang lain daripada yang anda pasang, tetapkan
+selepas pemasangan di `Tetapan ▸ [1]`.
 
 Satu perkara yang perlu dielak kalau anda menetapkan sumber secara
 manual:
