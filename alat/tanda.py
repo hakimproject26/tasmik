@@ -57,7 +57,22 @@ def _openssl(*args, **kw):
         sys.exit("Ralat: openssl tiada. Pasang dahulu (pkg install openssl-tool).")
     except subprocess.CalledProcessError as e:
         if e.returncode in (1, 2):
-            sys.exit("Ralat: openssl gagal. Frasa laluan salah, atau fail rosak.")
+            # Dua sebab yang berbeza menghasilkan kegagalan yang sama, dan
+            # akibatnya berbeza sama sekali. Frasa laluan yang salah bermakna
+            # kunci itu tidak boleh dipakai. Terminal yang tiada bermakna
+            # kunci itu tidak pernah ditanya — dan itu berlaku setiap kali
+            # skrip ini dijalankan dari cron, systemd, atau paip. Menyebut
+            # hanya yang pertama menghantar guru memburu masalah yang tidak
+            # wujud.
+            sys.exit(
+                "Ralat: openssl gagal membaca kunci.\n"
+                "       Kemungkinan:\n"
+                "         • Frasa laluan salah.\n"
+                "         • Skrip ini tiada terminal. openssl menanya frasa\n"
+                "           laluan terus di terminal, jadi ia TIDAK boleh\n"
+                "           dijalankan dari cron, dari paip, atau dengan\n"
+                "           stdin ditutup. Jalankan terus dalam Termux."
+            )
         sys.exit(f"Ralat: openssl keluar dengan kod {e.returncode}.")
 
 

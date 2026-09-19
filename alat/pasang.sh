@@ -143,7 +143,7 @@ fi
 # ditandatangani tidak pernah sampai ke peringkat penyahmampatan.
 cat > "$PEM" <<'PEM'
 -----BEGIN PUBLIC KEY-----
-KUNCI_AWAM_TASMIK_DI_SINI
+MCowBQYDK2VwAyEAPFWoOYFD39b/ZNCIfjlkwOfSkil1Wj3EJp5rBfIuUwI=
 -----END PUBLIC KEY-----
 PEM
 

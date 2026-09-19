@@ -44,7 +44,9 @@ import hashlib
 # Untuk mengisinya: jalankan `python3 alat/tanda.py jana`, kemudian tampal
 # baris `bytes.fromhex("…"),` yang dicetaknya di bawah ini.
 KUNCI = [
-    # Belum dijana. Lihat arahan di atas.
+    # Kunci tuan. Kunci rahsia yang sepadan ada di ~/.tasmik-kunci/kunci.pem,
+    # disulitkan dengan frasa laluan. Cap jari: 3c55 a839 8143 dfd6 …
+    bytes.fromhex("3c55a8398143dfd6ff64d0887e3964c0e7d29229755a3dc4269e6b05f22e5302"),
 ]
 
 # Mesej kegagalan. Dipulangkan sebagai SEBAB, bukan sekadar False, supaya
