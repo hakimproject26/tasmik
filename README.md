@@ -255,7 +255,7 @@ tidak boleh mengubah GitHub.
 boleh dimatikan, dan telefon boleh berada di mana-mana:
 
 ```
-curl -fsSL https://raw.githubusercontent.com/hakimproject26/tasmik/b90a520/alat/pasang.sh \
+curl -fsSL https://raw.githubusercontent.com/hakimproject26/tasmik/b5a0a55/alat/pasang.sh \
   | bash -s https://github.com/hakimproject26/tasmik/releases/latest/download
 ```
 
@@ -266,7 +266,7 @@ rumah anda.
 terbitan terbaharu belum dicermin ke GitHub:
 
 ```
-curl -fsSL https://raw.githubusercontent.com/hakimproject26/tasmik/b90a520/alat/pasang.sh \
+curl -fsSL https://raw.githubusercontent.com/hakimproject26/tasmik/b5a0a55/alat/pasang.sh \
   | bash -s http://192.168.1.10:8001
 ```
 
@@ -277,8 +277,17 @@ sebelum apa-apa diekstrak.
 Repo: <https://github.com/hakimproject26/tasmik>. Nombor dalam URL itu
 ialah commit SHA — lihat nota 1 di bawah.
 
-**Untuk kemas kini dari dalam app**, tetapkan `Tetapan ▸ [1]` kepada
-sumber yang sama:
+**Sumber kemas kini ditetapkan sendiri oleh pemasang.** Apa yang anda
+beri sebagai argumen terakhir itulah yang ditulis ke config, jadi kemas
+kini seterusnya datang dari tempat yang sama. Tiada langkah kedua, dan
+tiada URL panjang perlu ditaip pada telefon.
+
+Kalau sumber **sudah** ada dalam config, ia **dikekalkan** — pemasang
+akan memberitahu, dan anda boleh menukarnya di `Tetapan ▸ [1]` kalau
+mahu.
+
+Satu perkara yang perlu dielak kalau anda menetapkan sumber secara
+manual:
 
 | Sumber | Nilai |
 |---|---|
