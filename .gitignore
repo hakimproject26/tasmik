@@ -12,5 +12,23 @@ __pycache__/
 # Fail yang dihasilkan oleh alat/bina.sh
 # (sebenarnya ia pergi ke ~/serve-tasmik/, di luar repo ini —
 #  baris ini hanya jaring keselamatan kalau ia tersalah diletak)
+#
+# tasmik.tar.gz.sig disenaraikan berasingan dengan sengaja: glob git
+# memadan nama penuh, bukan awalan, jadi 'tasmik.tar.gz' TIDAK menangkap
+# fail '.sig' di sebelahnya.
 tasmik.tar.gz
+tasmik.tar.gz.sig
 versi.json
+
+# Kunci tandatangan. Kunci sebenar tinggal di ~/.tasmik-kunci/, di luar
+# repo — baris ini jaring keselamatan supaya kunci rahsia tidak pernah
+# masuk git walau apa pun yang berlaku pada tetapan laluan.
+#
+# Ini penting sebelum repo ditolak ke GitHub: sejarah git mengekalkan
+# fail yang dipadam selama-lamanya, jadi kunci yang tersalah commit
+# tidak boleh ditarik balik — ia hanya boleh diputar.
+*.pem
+*.sig
+kunci.pem
+kunci.awam
+

@@ -18,17 +18,19 @@ main.py — supaya `versi.json` yang dihantar ke telefon tidak boleh tak
 selaras dengan versi kod yang sebenarnya.
 """
 
-NOMBOR = "1.2.0"
+NOMBOR = "2.0.0"
 TARIKH = "19/09/2026"
 
 # Apa yang berubah pada versi SEMASA. Dipaparkan pada skrin Kemas Kini,
 # dan dihantar ke app melalui versi.json di pelayan.
 # Sejarah penuh ada dalam CHANGELOG.md.
 NOTA = [
-    "Skrin contoh format — Pelajar ▸ [3] ▸ Lihat contoh format.",
-    "Contoh ringkas juga dipaparkan sebelum menampal.",
-    "Pembetulan: baris yang terlalu panjang kini menjorok, jadi",
-    "sambungannya tidak lagi nampak seperti baris berasingan.",
+    "Arkib kemas kini kini DITANDATANGANI, dan app menolak apa-apa",
+    "yang tandatangannya tidak sah.",
+    "Pelayan kemas kini mesti menyediakan tasmik.tar.gz.sig — kalau",
+    "tidak, kemas kini akan ditolak. Jalankan bina.sh semula.",
+    "Rekod murid tidak pernah disentuh, sama ada kemas kini berjaya",
+    "atau ditolak.",
 ]
 
 

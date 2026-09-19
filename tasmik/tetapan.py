@@ -1,6 +1,6 @@
 """Skrin tetapan dan kemas kini."""
 
-from . import kemas, store, ui, versi
+from . import kemas, store, tandatangan, ui, versi
 
 
 def semak_awal(cfg):
@@ -22,6 +22,17 @@ def semak_awal(cfg):
     return None
 
 
+def _cap_jari():
+    """Cap jari kunci yang dipercayai, atau ayat yang menjelaskan ketiadaannya.
+
+    Dipaparkan supaya guru boleh membandingkannya dengan yang dicetak
+    `bina.sh`. Kalau dua-dua berbeza, telefon ini memegang kunci yang
+    berbeza daripada mesin pembinaan — dan setiap kemas kini akan ditolak.
+    """
+    cap = tandatangan.cap_jari()
+    return cap if cap else "(belum dijana)"
+
+
 def skrin_tetapan(cfg):
     while True:
         ui.tajuk("Tetapan")
@@ -29,6 +40,7 @@ def skrin_tetapan(cfg):
             ui.baris_kv("Versi           ", versi.penuh()),
             ui.baris_kv("Semak kemas kini",
                         "Ya" if cfg.get("semak_kemas", True) else "Tidak"),
+            ui.baris_kv("Cap jari kunci  ", _cap_jari()),
             "",
             "  1.  Sumber kemas kini",
             "  2.  Semak semasa buka",
@@ -45,7 +57,7 @@ def skrin_tetapan(cfg):
         if pilihan == "1":
             print()
             ui.maklum("Alamat folder yang ada versi.json dan tasmik.tar.gz.")
-            ui.maklum("Contoh: http://100.78.29.8:8001")
+            ui.maklum("Contoh: http://192.168.1.10:8001")
             lama = cfg.get("sumber_kemas", "")
             baharu = ui.tanya("Sumber kemas kini ('-' untuk kosongkan)",
                               lama or "-")
@@ -104,6 +116,7 @@ def skrin_kemas(cfg):
         ui.baris_kv("Sumber  ", kemas.betulkan(sumber)),
         "",
         ui.baris_kv("Terkini ", f"v{hasil['versi']} ({hasil['tarikh']})"),
+        ui.baris_kv("Kunci   ", _cap_jari()),
     ]
     print(ui.kotak(baris))
 

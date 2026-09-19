@@ -5,19 +5,23 @@ muat turun arkib dan timpa fail kod yang lama. Semuanya dari dalam app;
 guru tidak perlu buka terminal dan taip apa-apa.
 
     ┌──────────────────────────────────────────────────────────────┐
-    │  BELUM ADA PENGESAHAN TANDATANGAN.                           │
+    │  ARKIB MESTI DITANDATANGANI.                                 │
     │                                                              │
-    │  Arkib yang dimuat turun TIDAK diperiksa tandatangannya.     │
-    │  Sesiapa yang boleh menjawab pada alamat pelayan itu boleh   │
-    │  menghantar kod yang akan dijalankan pada telefon ini.       │
+    │  Tandatangan diperiksa terhadap kunci awam yang tersemat      │
+    │  dalam `tasmik/tandatangan.py` — sebelum satu bait pun        │
+    │  diekstrak. Arkib yang tidak ditandatangani, tandatangan      │
+    │  yang rosak, atau tandatangan yang tidak sepadan kesemuanya   │
+    │  DITOLAK. Tiada suis untuk mematikan pemeriksaan ini.         │
     │                                                              │
-    │  App rujukan (taksiran) sudah ada pengesahan Ed25519. Ia     │
-    │  belum dibawa ke sini. Untuk menambahnya kemudian, tempat   │
-    │  yang betul ialah di dalam `_periksa()` di bawah — satu gat  │
-    │  tunggal, sebelum apa-apa diekstrak.                         │
+    │  Yang MASIH tidak dilindungi: pemasangan PERTAMA. Masa itu,   │
+    │  `pasang.sh` dan arkib datang dari pelayan yang sama, jadi    │
+    │  penyerang yang menguasai pelayan boleh menukar kedua-duanya  │
+    │  sekali gus. Ambil `pasang.sh` dari GitHub untuk menutup      │
+    │  jurang itu — lihat README, bahagian "Nota keselamatan".      │
+    │  Selepas pemasangan pertama, pelayan tidak lagi berkuasa.     │
     └──────────────────────────────────────────────────────────────┘
 
-Yang SUDAH ada di sini, dan sebabnya:
+Yang lain yang ada di sini, dan sebabnya:
 
   * Had saiz muat turun. Muat turun berlaku SEBELUM apa-apa diperiksa,
     jadi pelayan yang rosak boleh menghantar strim tanpa penghujung dan
@@ -43,20 +47,28 @@ import tempfile
 import urllib.error
 import urllib.request
 
-from . import versi
+from . import tandatangan, versi
 
 AKAR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIR_SALINAN = os.path.join(AKAR, ".backup")
 
 NAMA_VERSI = "versi.json"
 NAMA_ARKIB = "tasmik.tar.gz"
+NAMA_SIG = NAMA_ARKIB + ".sig"
 
 MASA_TAMAT = 3         # saat — semakan versi (fail kecil)
 MASA_TAMAT_MUAT = 60   # saat — muat turun arkib penuh
+MASA_TAMAT_TANDA = 10  # saat — fail tandatangan (129 bait)
 
 # Arkib sebenar ~50 KB. Had ini wujud kerana muat turun berlaku SEBELUM
 # apa-apa diperiksa.
 SAIZ_MAKS = 20 * 1024 * 1024
+
+# Tandatangan ialah 128 aksara hex + newline. Had ini jauh lebih besar
+# daripada itu, tetapi jauh lebih kecil daripada SAIZ_MAKS: pelayan yang
+# diceroboh tidak sepatutnya boleh membuat telefon memperuntukkan 20 MB
+# untuk fail yang sepatutnya 129 bait.
+SAIZ_MAKS_SIG = 4096
 
 # Nombor versi yang sah. `_nombor()` sengaja pemaaf — ia mengira bahagian
 # bukan angka sebagai 0 — jadi versi cacat mesti ditolak di sini.
@@ -73,7 +85,7 @@ _RE_KAWAL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 def betulkan(sumber):
     """Kemas alamat yang ditaip guru.
 
-    Terima '100.78.29.8:8001' sepatah — tambah 'http://' sendiri.
+    Terima '192.168.1.10:8001' sepatah — tambah 'http://' sendiri.
     """
     s = (sumber or "").strip().rstrip("/")
     if s and "://" not in s:
@@ -181,16 +193,41 @@ def semak(sumber):
 
 # ----------------------------------------------------------------- pasang
 
-def _periksa_arkib(laluan, dijangka):
-    """Periksa struktur arkib SEBELUM ia menyentuh apa-apa.
+def _periksa_arkib(laluan, dijangka, teks_sig, data):
+    """Periksa arkib SEBELUM ia menyentuh apa-apa. Pulangkan (ok, mesej).
 
-    Pulangkan (ok, mesej).
+    INILAH gat tunggal untuk kemas kini — tandatangan DAN struktur, dalam
+    satu fungsi yang sama. Ia sengaja tidak dipecahkan kepada dua, kerana
+    fungsi berasingan mencipta jalan panggilan yang boleh memintas
+    pengesahan. Satu gat, tiada jalan sekeliling.
 
-    INILAH gat tunggal untuk kemas kini. Kalau pengesahan tandatangan
-    ditambah kemudian, ia masuk di sini — sebelum `tarfile.open()`, supaya
-    arkib yang tidak dipercayai tidak pernah sampai ke peringkat
-    penyahmampatan.
+    Urutannya mengikat, bukan gaya:
+
+      1. Tandatangan di atas `data` — bait yang benar-benar tiba dari wayar.
+      2. Baharu struktur arkib dibuka.
+
+    `tarfile.getnames()` memaksa penyahmampatan gzip yang penuh untuk membaca
+    senarai nama. Kalau struktur diperiksa dahulu, arkib bom meletup sebelum
+    apa-apa disahkan. Jadi tandatangan mesti dahulu.
+
+    `data` dihantar masuk, bukan dibaca semula dari `laluan`, supaya yang
+    disahkan ialah tepat apa yang dimuat turun. Pembacaan kedua membuka
+    peluang arkib berubah antara pengesahan dan pengekstrakan.
     """
+    ok, sebab = tandatangan.sahkan(teks_sig, data)
+    if not ok:
+        return False, sebab
+
+    # Tandatangan sah bermakna `data` tulen. Tetapi yang akan diekstrak ialah
+    # `laluan`, bukan `data`. Kalau dua-dua tidak sama panjang, fail di atas
+    # cakera bukan fail yang ditandatangani — dan itu mesti berhenti di sini.
+    try:
+        saiz_cakera = os.path.getsize(laluan)
+    except OSError as e:
+        return False, f"Fail arkib tidak boleh dibaca ({e})."
+    if saiz_cakera != len(data):
+        return False, "Fail arkib berubah selepas dimuat turun — dibatalkan."
+
     try:
         with tarfile.open(laluan, "r:gz") as tf:
             nama = tf.getnames()
@@ -297,12 +334,35 @@ def pasang(sumber, versi_dijangka, lapor=None):
             f.write(data)
         lapor(f"  {len(data) / 1024:.0f} KB diterima")
 
-        lapor("Memeriksa arkib …")
-        ok, mesej = _periksa_arkib(tmp.name, versi_dijangka)
+        # Tandatangan dimuat turun BERASINGAN, dan ketiadaannya ialah
+        # kegagalan yang tersendiri. Kalau 404 jatuh ke `_mesej_ralat()`,
+        # guru akan membaca "Pelayan hidup, tetapi fail itu tiada (404)" —
+        # betul secara teknikal, tetapi ia menyembunyikan sebab sebenar,
+        # iaitu kemas kini dibatalkan kerana KESELAMATAN.
+        lapor(f"Memuat turun {NAMA_SIG} …")
+        try:
+            mentah_sig = _ambil(f"{sumber}/{NAMA_SIG}", MASA_TAMAT_TANDA,
+                                maks=SAIZ_MAKS_SIG)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return False, (
+                    f"Pelayan ini tidak menyediakan {NAMA_SIG}, jadi "
+                    "tandatangan tak dapat diperiksa. Kemas kini dibatalkan — "
+                    "tiada apa-apa diubah."
+                ), False
+            return False, _mesej_ralat(e), False
+        except Exception as e:  # noqa: BLE001
+            return False, _mesej_ralat(e), False
+
+        lapor("Mengesahkan tandatangan …")
+        ok, mesej = _periksa_arkib(
+            tmp.name, versi_dijangka,
+            mentah_sig.decode("ascii", "replace"), data)
         if not ok:
-            # Gagal TERTUTUP.
+            # Gagal TERTUTUP. Setiap kegagalan di sini berlaku SEBELUM
+            # pengekstrakan, jadi `berubah=False` sentiasa betul.
             return False, mesej, False
-        lapor("  ✓ arkib utuh")
+        lapor("  ✓ tandatangan sah, arkib utuh")
 
         lapor("Menyimpan salinan lama …")
         simpan_salinan()

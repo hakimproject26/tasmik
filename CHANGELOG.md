@@ -12,6 +12,66 @@ Setiap kali nombor dalam `tasmik/versi.py` naik, catat sebabnya di sini.
 
 ---
 
+## v2.0.0 — 19/09/2026
+
+**Arkib kemas kini ditandatangani** — app menolak apa-apa yang
+tandatangannya tidak sah.
+
+Ini perubahan MAJOR kerana sesuatu yang lama memang tak berfungsi lagi:
+pelayan yang tiada `tasmik.tar.gz.sig` akan mula ditolak. Itu memang
+tujuannya.
+
+Sebelum ini, sesiapa yang boleh menjawab pada alamat pelayan kemas kini
+boleh menghantar kod yang akan dijalankan pada telefon. Sekarang arkib
+mesti ditandatangani dengan kunci rahsia tuan, dan app memegang kunci
+**awam** — jadi ia boleh mengesahkan tetapi tidak boleh mencipta
+tandatangan.
+
+**Bagaimana ia berfungsi**
+
+- Tandatangan Ed25519, diperiksa terhadap kunci yang tersemat dalam
+  `tasmik/tandatangan.py`. Sesiapa yang boleh menulis `config.json` tidak
+  boleh mengubah sauh kepercayaan itu.
+- Diperiksa **sebelum** arkib dibuka — `tarfile.getnames()` menyahmampatkan
+  seluruh gzip, jadi arkib bom mesti ditolak sebelum ia sempat meletup.
+- Tiada suis untuk mematikan pemeriksaan. Kalau ada, ia menjadi sasaran
+  pertama penyerang.
+- Ditulis dengan pustaka asas Python sahaja — Termux tiada `pip`. Ia diuji
+  terhadap vektor rasmi RFC 8032 dan satu set kes berniat jahat, dan
+  disilang-periksa dengan `openssl` pada setiap binaan.
+
+**Tiga kegagalan dibezakan**, supaya guru tahu apa yang berlaku:
+tandatangan tiada, tandatangan rosak, dan tandatangan tidak sepadan. Ketiga-
+tiganya berlaku sebelum pengextrakan, jadi skrin boleh mengaku dengan jujur
+"Tiada apa-apa diubah".
+
+**Yang masih tidak dilindungi:** pemasangan PERTAMA. Masa itu `pasang.sh`
+dan arkib datang dari pelayan yang sama, jadi penyerang yang menguasai
+pelayan boleh menukar kedua-duanya sekali gus. Ambil `pasang.sh` dari GitHub
+untuk menutupnya — lihat README, "Nota keselamatan".
+
+**Tambahan**
+
+- `ujian/` — 32 ujian, dijalankan oleh `bina.sh` sebelum apa-apa dibina
+- `alat/tanda.py` — jana kunci, tandatangan, sahkan, dan gat `padan`
+- Skrin Tetapan dan skrin Kemas Kini memaparkan cap jari kunci
+- `bina.sh` mengesahkan tandatangan yang baru dibuat dengan pengesah Python
+  yang akan dihantar ke telefon — percanggahan antara `openssl` dan kod app
+  ditangkap di mesin pembinaan, bukan di telefon guru
+- Alamat Tailscale sebenar dalam contoh `tetapan.py` dan `kemas.py`
+  digantikan dengan contoh generik, supaya ia tidak diterbitkan kalau repo
+  ini ditolak ke GitHub
+
+**Pembetulan**
+
+- `sahkan()` dalam `tandatangan.py` membaling `AttributeError` apabila
+  menerima input bukan teks (cth. integer), walaupun docstringnya berjanji
+  ia tidak pernah membaling. Janji itu yang membolehkan pemanggil gagal
+  tertutup tanpa `except` yang berisiko menelan kegagalan sebenar, jadi ia
+  kini dipenuhi.
+
+---
+
 ## v1.2.0 — 19/09/2026
 
 **Contoh format ditunjukkan dalam app** — `Pelajar ▸ [3] ▸ Lihat contoh format`
@@ -99,7 +159,6 @@ Versi pertama.
 
 **Belum ada**
 
-- Pengesahan tandatangan arkib. Sesiapa yang boleh menjawab pada alamat
-  pelayan kemas kini boleh menghantar kod yang akan dijalankan pada telefon.
-  Lihat nota dalam `tasmik/kemas.py` — tempat untuk menambahnya ialah
-  `_periksa_arkib()`.
+- Pengesahan tandatangan arkib. *(Ditambah dalam v2.0.0.)* Sesiapa yang
+  boleh menjawab pada alamat pelayan kemas kini boleh menghantar kod yang
+  akan dijalankan pada telefon.
