@@ -247,20 +247,50 @@ Pada pemasangan pertama, `pasang.sh` dan arkib datang dari pelayan yang
 sekali gus — kunci dalam skrip itu dan arkibnya — jadi pemeriksaan
 tandatangan tidak melindungi apa-apa pada pusingan itu.
 
-Untuk menutupnya, ambil **`pasang.sh` dari GitHub** dan **arkib dari
-pelayan LAN**:
+Ada dua cara menutupnya. Kedua-duanya mengambil **`pasang.sh` dari
+GitHub** — di situlah jaminannya, kerana pelayan yang menyajikan arkib
+tidak boleh mengubah GitHub.
+
+**Cara 1 — sepenuhnya dari GitHub.** Tiada pelayan diperlukan. Laptop
+boleh dimatikan, dan telefon boleh berada di mana-mana:
 
 ```
-curl -fsSL https://raw.githubusercontent.com/hakimproject26/tasmik/c63d542/alat/pasang.sh \
+curl -fsSL https://raw.githubusercontent.com/hakimproject26/tasmik/b90a520/alat/pasang.sh \
+  | bash -s https://github.com/hakimproject26/tasmik/releases/latest/download
+```
+
+Ini cara yang betul untuk **guru lain**, yang tiada akses kepada pelayan
+rumah anda.
+
+**Cara 2 — arkib dari pelayan LAN.** Untuk pembangunan, atau kalau
+terbitan terbaharu belum dicermin ke GitHub:
+
+```
+curl -fsSL https://raw.githubusercontent.com/hakimproject26/tasmik/b90a520/alat/pasang.sh \
   | bash -s http://192.168.1.10:8001
 ```
 
-GitHub tidak boleh diubah oleh pelayan LAN, jadi kunci yang tertanam dalam
-skrip itu boleh dipercayai — dan pelayan hanya menyediakan arkib, yang
-diperiksa tandatangannya.
+Dalam kedua-duanya, kunci yang tertanam dalam skrip itu boleh dipercayai
+kerana ia datang dari GitHub — dan arkibnya diperiksa terhadap kunci itu
+sebelum apa-apa diekstrak.
 
 Repo: <https://github.com/hakimproject26/tasmik>. Nombor dalam URL itu
 ialah commit SHA — lihat nota 1 di bawah.
+
+**Untuk kemas kini dari dalam app**, tetapkan `Tetapan ▸ [1]` kepada
+sumber yang sama:
+
+| Sumber | Nilai |
+|---|---|
+| GitHub (disyorkan) | `https://github.com/hakimproject26/tasmik/releases/latest/download` |
+| Pelayan LAN | `http://192.168.1.10:8001` |
+
+`releases/latest/download` sentiasa menunjuk kepada terbitan TERBAHARU,
+jadi ia tidak perlu ditukar setiap kali versi naik. Sebaliknya, URL yang
+menyebut nombor versi (`…/releases/download/v2.0.0`) akan **tersekat
+selamanya** pada versi itu — app akan berkata "sudah terkini" walaupun
+terbitan baharu sudah wujud. Itu perangkap yang senang terlepas pandang,
+jadi elak URL bernombor versi untuk tetapan ini.
 
 **Selepas pemasangan pertama, pelayan tidak lagi berkuasa.** App memeriksa
 sendiri setiap kemas kini.
