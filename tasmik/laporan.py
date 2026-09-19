@@ -6,17 +6,25 @@ from . import pelajar, rekod, store, surah, ui
 
 
 def _blok_pelajar(p, ringkas=False):
-    """Senarai baris kotak bagi seorang pelajar."""
+    """Senarai baris kotak bagi seorang murid."""
     s = store.ringkasan_pelajar(p["id"])
     nama = p["nama"] + (f"   ·   {p['kelas']}" if p["kelas"] else "")
 
     if not s["akhir"]:
         return [nama, "", "Belum ada rekod tasmi'."]
 
+    # Tilawah ikut halaman tiada julat ayat, jadi "0 ayat" akan muncul bagi
+    # murid yang jelas membaca. Halaman dilaporkan pada barisnya sendiri
+    # supaya kedua-dua bentuk rekod kelihatan, tanpa dicampur menjadi satu
+    # angka yang tidak bermakna.
+    tilawah = f"{s['sesi_tilawah']} sesi  ·  {s['ayat_tilawah']} ayat"
+    if s["halaman"]:
+        tilawah += f"  ·  {len(s['halaman'])} halaman"
+
     baris = [
         nama,
         "",
-        ui.baris_kv("Tilawah ", f"{s['sesi_tilawah']} sesi  ·  {s['ayat_tilawah']} ayat"),
+        ui.baris_kv("Tilawah ", tilawah),
         ui.baris_kv("Hafazan ", f"{s['sesi_hafazan']} sesi  ·  {s['ayat_hafazan']} ayat"),
         ui.baris_kv("Juzuk   ", surah.ringkas_nombor(s["juzuk"])),
         ui.baris_kv("Surah dihafaz", f"{len(s['surah_hafazan'])} surah"),
@@ -26,17 +34,17 @@ def _blok_pelajar(p, ringkas=False):
         a = s["akhir_hafazan"]
         baris.append("")
         baris.append("Hafazan terjauh:")
-        baris.append("  " + surah.label_surah(a["surah_no"], a["ayat_dari"],
-                                               a["ayat_hingga"]))
+        baris.append("  " + rekod.label_rekod(a))
         baris.append("  " + ui.tarikh_my(a["tarikh"]))
 
     if not ringkas:
         a = s["akhir"]
         baris.append("")
         baris.append("Tasmi' terakhir:")
+        # `label_rekod()` dipakai di sini dan bukan dipetik semula, supaya
+        # rekod terakhir tidak dipaparkan berbeza daripada senarai rekod.
         baris.append("  " + store.JENIS_NAMA[a["jenis"]] + " — "
-                     + surah.label_surah(a["surah_no"], a["ayat_dari"],
-                                         a["ayat_hingga"]))
+                     + rekod.label_rekod(a))
         baris.append("  " + ui.tarikh_my(a["tarikh"]))
 
     return baris
@@ -46,13 +54,13 @@ def kemajuan_skrin():
     ui.tajuk("Laporan kemajuan")
     senarai = store.semua_pelajar()
     if not senarai:
-        ui.sebut("Belum ada pelajar didaftarkan.")
+        ui.sebut("Belum ada murid didaftarkan.")
         ui.jeda()
         return
 
     pilihan = ui.pilih_dari_senarai(
         "Papar laporan",
-        [("Semua pelajar", "semua")] + [(p["nama"], p["id"]) for p in senarai],
+        [("Semua murid", "semua")] + [(p["nama"], p["id"]) for p in senarai],
     )
     if not pilihan:
         return
@@ -63,7 +71,7 @@ def kemajuan_skrin():
         mula = date.today() - timedelta(days=30)
         bil_hari = store.bilangan_hari_ada_tasmi(mula.isoformat())
         print(ui.kotak([
-            "Semua pelajar",
+            "Semua murid",
             f"{bil_hari} hari ada tasmi'",
             "dalam 30 hari lepas",
         ]))
@@ -84,7 +92,7 @@ def kemajuan_skrin():
 
 
 def _sejarah(pid, had=10):
-    """Senarai rekod terakhir seorang pelajar."""
+    """Senarai rekod terakhir seorang murid."""
     baris = store.cari_rekod("r.pelajar_id = ?", (pid,), had=had)
     if not baris:
         return

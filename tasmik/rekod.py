@@ -1,21 +1,55 @@
-"""Skrin rekod tasmi' — tambah, senarai, tapis, padam."""
+"""Skrin tasmi' — aliran Tasmik, senarai rekod, tapis, padam.
+
+Aliran utama (sejak v3.0.0) mengikut susunan yang guru gunakan di dalam
+kelas: pilih kumpulan murid, pilih jenis, kemudian isi borang. Ia
+menggantikan "Tambah rekod tasmi'" yang lama, yang bermula dengan senarai
+SEMUA murid — satu langkah yang tidak berguna apabila guru sedang mengajar
+satu kelas.
+
+Dua bentuk rekod wujud, dan paparan di sini mesti mengendalikan kedua-dua:
+
+  - **hafazan** — julat ayat, seperti dahulu
+  - **tilawah** — halaman mushaf sejak v3.0.0, dan julat ayat bagi rekod
+    tilawah yang direkod sebelum itu
+
+Rekod lama tidak pernah ditukar. Ia hanya dipaparkan mengikut bentuk yang
+ia sebenarnya.
+"""
 
 from datetime import date, timedelta
 
-from . import pelajar, store, surah, ui
+from . import mushaf, pelajar, store, surah, ui
 
 
 def _tanda(jenis):
     return "T" if jenis == store.TILAWAH else "H"
 
 
+def label_rekod(r):
+    """Satu baris yang menerangkan apa yang dibaca.
+
+    Dikongsi oleh senarai dan skrin padam supaya kedua-duanya tidak boleh
+    hanyut — rekod yang dipaparkan sebagai "Halaman 245" dalam senarai
+    mesti dipaparkan sama apabila guru hendak memadamnya.
+    """
+    if r["muka_surat"]:
+        return f"Halaman {r['muka_surat']} ({mushaf.label_halaman(r['muka_surat'])})"
+    return surah.label_surah(r["surah_no"], r["ayat_dari"], r["ayat_hingga"])
+
+
 def baris_ringkas(r):
     """Dua atau tiga baris bagi satu rekod: bacaan, butiran, nota."""
-    bacaan = surah.label_surah(r["surah_no"], r["ayat_dari"], r["ayat_hingga"])
-    ayat = r["ayat_hingga"] - r["ayat_dari"] + 1
-    baris = [f"{ui.tarikh_pendek(r['tarikh'])} [{_tanda(r['jenis'])}]  {bacaan}"]
+    baris = [f"{ui.tarikh_pendek(r['tarikh'])} [{_tanda(r['jenis'])}]  "
+             f"{label_rekod(r)}"]
 
-    butiran = f"{r['nama_pelajar']}  ·  {ayat} ayat"
+    if r["muka_surat"]:
+        # Halaman bukan bilangan ayat, jadi butiran tidak boleh menyebut
+        # bilangan. Ayat NULL di sini ialah keadaan yang sah, bukan data
+        # yang hilang.
+        butiran = f"{r['nama_pelajar']}  ·  halaman {r['muka_surat']}"
+    else:
+        ayat = r["ayat_hingga"] - r["ayat_dari"] + 1
+        butiran = f"{r['nama_pelajar']}  ·  {ayat} ayat"
     if r["juzuk"]:
         butiran += f"  ·  J{r['juzuk']}"
     baris.append("   " + butiran)
@@ -25,62 +59,179 @@ def baris_ringkas(r):
     return baris
 
 
-def tambah_skrin():
-    """Aliran menambah satu rekod tasmi'."""
-    ui.tajuk("Tambah rekod tasmi'")
+# ------------------------------------------------------------------ tasmik
 
-    p = pelajar.pilih_pelajar("Pilih pelajar")
+def sesi_skrin(cfg):
+    """Aliran Tasmik: kumpulan kelas → jenis → borang."""
+    ui.tajuk("Tasmik")
+    kelas = _pilih_kelas()
+    if kelas is None:
+        return
+    jenis = _pilih_jenis(kelas)
+    if jenis is None:
+        return
+    if jenis == store.TILAWAH:
+        _borang_tilawah(kelas)
+    else:
+        _borang_hafazan(cfg, kelas)
+
+
+def _pilih_kelas():
+    """Pulangkan nama kelas, "" untuk tanpa kelas, atau None kalau batal."""
+    senarai = store.senarai_kelas()
+    if not senarai:
+        ui.sebut("Belum ada murid didaftarkan.")
+        ui.maklum("Tambah murid di menu Murid dahulu.")
+        ui.jeda()
+        return None
+    # Label di dalam kotak disorong oleh "  1. " — lima aksara. Tanpa
+    # menolaknya, setiap baris terbelah dua dan senarai jadi dua kali
+    # panjang di skrin telefon.
+    lebar_label = ui.lebar() - 9
+    item = [
+        (ui.baris_kv(nama or "Tanpa kelas", f"{bil} murid", lebar_label), nama)
+        for nama, bil in senarai
+    ]
+    return ui.pilih_dari_senarai("Tasmik", item)
+
+
+def _pilih_jenis(kelas):
+    return ui.pilih_dari_senarai(
+        f"{kelas or 'Tanpa kelas'} · jenis",
+        [("Tilawah  — bacaan mushaf", store.TILAWAH),
+         ("Hafazan  — hafalan surah", store.HAFAZAN)],
+    )
+
+
+def _borang_tilawah(kelas):
+    """Tilawah direkod ikut HALAMAN. Surah dan juzuk diterbitkan."""
+    p = pelajar.pilih_pelajar_kelas(kelas, "Pilih murid")
     if not p:
         return
-
-    jenis = ui.pilih_dari_senarai(
-        f"Jenis tasmi' untuk {p['nama']}",
-        [("Tilawah  (bacaan)", store.TILAWAH),
-         ("Hafazan  (menghafal)", store.HAFAZAN)],
-    )
-    if not jenis:
-        return
-
     tarikh = ui.tanya_tarikh("Tarikh tasmi'")
-    s = surah.pilih_surah()
-    if not s:
-        return
-    no, nama_s, jumlah_ayat, _j1, _j2 = s
 
-    print()
-    print(ui.kotak([
-        f"  {nama_s} mempunyai {jumlah_ayat} ayat.",
-        "  ENTER sahaja untuk rekod seluruh surah.",
-    ]))
-    dari = ui.tanya_int(f"Ayat dari (1-{jumlah_ayat})", 1, jumlah_ayat, 1)
-    hingga = ui.tanya_int(f"Ayat hingga ({dari}-{jumlah_ayat})",
-                          dari, jumlah_ayat, jumlah_ayat)
-
-    # Hafazan sengaja TIDAK bertanya juzuk. Guru menghafaz ikut surah dan
-    # ayat, bukan ikut juzuk — dan satu soalan yang tidak perlu setiap kali
-    # menambah rekod lama-lama menjadi kerja yang melecehkan.
-    if jenis == store.TILAWAH:
+    while True:
+        halaman = ui.tanya_int(f"Muka surat mushaf (1-{mushaf.HALAMAN_MAKS})",
+                               1, mushaf.HALAMAN_MAKS)
+        juzuk = mushaf.juzuk_pada_halaman(halaman)
         print()
-        juzuk = ui.tanya("Juzuk (cth: 1 atau 1-3)", surah.julat_juzuk(no))
-    else:
-        juzuk = surah.julat_juzuk(no)
+        print(ui.kotak([
+            f"  Halaman {halaman}",
+            f"  Juzuk {juzuk}   ·   {mushaf.label_halaman(halaman)}",
+        ], tajuk="Halaman ini"))
+        # Guru SAHKAN terbitan itu, bukan menerimanya bulat-bulat. Jadual
+        # halaman ialah data yang disemak di mesin pembina, tetapi mushaf
+        # guru mungkin berbeza — dan dia satu-satunya yang boleh nampak
+        # perbezaan itu.
+        if ui.tanya_ya("Betul"):
+            break
+        ui.sebut("Taip semula nombor halaman.")
 
     print()
     nota = ui.tanya("Nota / catatan (boleh kosong)", boleh_kosong=True)
 
-    store.tambah_rekod(p["id"], tarikh.isoformat(), jenis, no, dari, hingga,
-                       juzuk, nota)
+    _sahkan_dan_simpan(
+        p=p, tarikh=tarikh, jenis=store.TILAWAH,
+        no=mushaf.surah_pada_halaman(halaman)[0],
+        dari=None, hingga=None, juzuk=str(juzuk), nota=nota,
+        muka_surat=halaman, kelas=kelas,
+    )
 
-    bil_ayat = hingga - dari + 1
-    ui.tajuk("Rekod disimpan")
+
+def _borang_hafazan(cfg, kelas):
+    p = pelajar.pilih_pelajar_kelas(kelas, "Pilih murid")
+    if not p:
+        return
+    tarikh = ui.tanya_tarikh("Tarikh tasmi'")
+
+    s = _pilih_surah_kelas(cfg, kelas)
+    if not s:
+        return
+    no, nama_s, jumlah, _j1, _j2 = s
+
+    print()
     print(ui.kotak([
-        ui.baris_kv("Pelajar ", p["nama"]),
-        ui.baris_kv("Jenis   ", store.JENIS_NAMA[jenis]),
-        ui.baris_kv("Tarikh  ", ui.tarikh_my(tarikh.isoformat(), dengan_hari=True)),
-        ui.baris_kv("Bacaan  ", surah.label_surah(no, dari, hingga)),
-        ui.baris_kv("Bilangan", f"{bil_ayat} ayat"),
-        ui.baris_kv("Juzuk   ", juzuk or "-"),
-    ] + ([ui.baris_kv("Nota    ", nota)] if nota else [])))
+        f"  {nama_s} mempunyai {jumlah} ayat.",
+        "  ENTER sahaja untuk rekod seluruh surah.",
+    ]))
+    # Had atas ialah bilangan ayat SEBENAR surah itu. Dokumen asal menyebut
+    # "auto 1-110 sebab al-Kahfi sampai 110", tetapi senarai rata begitu
+    # membenarkan "al-Mulk ayat 50" disimpan tanpa sebarang amaran.
+    dari = ui.tanya_int(f"Ayat dari (1-{jumlah})", 1, jumlah, 1)
+    hingga = ui.tanya_int(f"Ayat hingga ({dari}-{jumlah})", dari, jumlah, jumlah)
+
+    print()
+    nota = ui.tanya("Nota / catatan (boleh kosong)", boleh_kosong=True)
+
+    # Hafazan sengaja TIDAK bertanya juzuk. Guru menghafaz ikut surah dan
+    # ayat, bukan ikut juzuk — dan satu soalan yang tidak perlu setiap kali
+    # menambah rekod lama-lama menjadi kerja yang melecehkan.
+    _sahkan_dan_simpan(
+        p=p, tarikh=tarikh, jenis=store.HAFAZAN, no=no,
+        dari=dari, hingga=hingga, juzuk=surah.julat_juzuk(no), nota=nota,
+        muka_surat=None, kelas=kelas,
+    )
+
+
+def _pilih_surah_kelas(cfg, kelas):
+    """Surah daripada sukatan kelas, atau carian penuh 114 surah."""
+    sukatan = (cfg.get("sukatan") or {}).get(kelas or "", [])
+    item = []
+    for n in sukatan:
+        if isinstance(n, int) and 1 <= n <= 114:
+            item.append(
+                (f"{surah.nama_surah(n)}  ({surah.ayat_surah(n)} ayat)",
+                 surah.SURAH[n - 1])
+            )
+    if not item:
+        ui.maklum("Sukatan kelas ini belum ditetapkan.")
+    item.append(("Cari surah lain (114)", "cari"))
+
+    pilihan = ui.pilih_dari_senarai(f"Hafazan · {kelas or 'Tanpa kelas'}", item)
+    if pilihan is None:
+        return None
+    if pilihan == "cari":
+        return surah.pilih_surah()
+    return pilihan
+
+
+def _sahkan_dan_simpan(p, tarikh, jenis, no, dari, hingga, juzuk, nota,
+                       muka_surat, kelas):
+    """Papar ringkasan, minta pengesahan, kemudian simpan.
+
+    Satu tempat sahaja menyimpan rekod, supaya kedua-dua jenis tidak boleh
+    hanyut dari segi apa yang dipaparkan sebelum menyimpan.
+    """
+    baris = [
+        ui.baris_kv("Murid ", p["nama"]),
+        ui.baris_kv("Kelas ", kelas or "—"),
+        ui.baris_kv("Tarikh", ui.tarikh_my(tarikh.isoformat(), dengan_hari=True)),
+    ]
+    if muka_surat:
+        baris += [
+            ui.baris_kv("Bacaan", f"Halaman {muka_surat}"),
+            ui.baris_kv("Surah ", mushaf.label_halaman(muka_surat)),
+            ui.baris_kv("Juzuk ", str(juzuk)),
+        ]
+    else:
+        baris += [
+            ui.baris_kv("Bacaan", surah.label_surah(no, dari, hingga)),
+            ui.baris_kv("Bilangan", f"{hingga - dari + 1} ayat"),
+            ui.baris_kv("Juzuk ", juzuk or "-"),
+        ]
+    if nota:
+        baris.append(ui.baris_kv("Nota  ", nota))
+
+    print()
+    print(ui.kotak(baris, tajuk="Simpan rekod?"))
+    if not ui.tanya_ya("Simpan"):
+        ui.sebut("Dibatalkan — tiada apa-apa disimpan.")
+        ui.jeda()
+        return
+
+    store.tambah_rekod(p["id"], tarikh.isoformat(), jenis, no, dari, hingga,
+                       juzuk, nota, muka_surat)
+    ui.jaya("Rekod disimpan.")
     ui.jeda()
 
 
@@ -90,7 +241,7 @@ def _tapis():
     """Kumpul tapisan daripada guru. Pulangkan (where, params, keterangan)."""
     pilihan = ui.pilih_dari_senarai("Tapis rekod", [
         ("Semua rekod", "semua"),
-        ("Ikut pelajar", "pelajar"),
+        ("Ikut murid", "pelajar"),
         ("Ikut tarikh (julat)", "tarikh"),
         ("Hari ini sahaja", "hari_ini"),
         ("Minggu ini sahaja", "minggu"),
@@ -169,9 +320,20 @@ def senarai_skrin():
             print("     " + lanjutan.strip())
         print()
 
-    jumlah_ayat = sum(r["ayat_hingga"] - r["ayat_dari"] + 1 for r in baris)
+    # Rekod ikut halaman tiada julat ayat, jadi ia tidak boleh dicampur ke
+    # dalam jumlah ayat tanpa menjadikannya palsu. Kedua-duanya dikira dan
+    # dilaporkan berasingan.
+    jumlah_ayat = sum(r["ayat_hingga"] - r["ayat_dari"] + 1
+                      for r in baris if r["ayat_dari"] is not None)
+    jumlah_hal = sum(1 for r in baris if r["muka_surat"])
+
     print(ui.garis())
-    ui.maklum(f"{len(baris)} rekod  ·  {jumlah_ayat} ayat")
+    ringkas = f"{len(baris)} rekod"
+    if jumlah_ayat:
+        ringkas += f"  ·  {jumlah_ayat} ayat"
+    if jumlah_hal:
+        ringkas += f"  ·  {jumlah_hal} halaman"
+    ui.maklum(ringkas)
 
     print()
     # Soalan ini sekali gus jadi jeda untuk membaca senarai — guru membaca
@@ -185,9 +347,7 @@ def senarai_skrin():
 
 def padam_skrin(r):
     print()
-    ui.amaran("Padam rekod: "
-              f"{r['nama_pelajar']} — "
-              f"{surah.label_surah(r['surah_no'], r['ayat_dari'], r['ayat_hingga'])} "
+    ui.amaran(f"Padam rekod: {r['nama_pelajar']} — {label_rekod(r)} "
               f"({ui.tarikh_my(r['tarikh'])})?")
     if (ui.tanya("Taip 'padam' untuk sahkan", boleh_kosong=True) or "").lower() != "padam":
         ui.sebut("Dibatalkan.")

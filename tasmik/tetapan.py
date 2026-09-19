@@ -1,6 +1,6 @@
 """Skrin tetapan dan kemas kini."""
 
-from . import kemas, store, tandatangan, ui, versi
+from . import kemas, store, surah, tandatangan, ui, versi
 
 
 def semak_awal(cfg):
@@ -45,6 +45,7 @@ def skrin_tetapan(cfg):
             "  1.  Sumber kemas kini",
             "  2.  Semak semasa buka",
             "  3.  Kemas kini sekarang",
+            "  4.  Sukatan kelas",
             "",
             "  0.  Kembali",
         ]))
@@ -78,11 +79,141 @@ def skrin_tetapan(cfg):
         elif pilihan == "3":
             skrin_kemas(cfg)
 
+        elif pilihan == "4":
+            sukatan_skrin(cfg)
+
         elif pilihan == "0":
             return
         else:
             ui.ralat("Pilihan tidak sah.")
             ui.jeda()
+
+
+# ------------------------------------------------------------- sukatan
+
+def _pilih_kelas_sukatan(cfg):
+    """Senarai kelas yang ada murid, berserta bilangan surahnya."""
+    senarai = store.senarai_kelas()
+    if not senarai:
+        ui.sebut("Belum ada murid didaftarkan.")
+        # Kelas datang daripada murid — tiada tempat lain dalam app ini
+        # yang menyimpannya. Jadi kelas kosong tidak boleh disukat.
+        ui.maklum("Kelas datang daripada murid. Tambah murid dahulu.")
+        ui.jeda()
+        return None
+    sukatan = cfg.get("sukatan") or {}
+    item = [
+        (ui.baris_kv(nama or "Tanpa kelas",
+                     f"{bil} murid · {len(sukatan.get(nama, []))} surah",
+                     ui.lebar() - 9), nama)
+        for nama, bil in senarai
+    ]
+    return ui.pilih_dari_senarai("Sukatan kelas", item)
+
+
+def _simpan_sukatan(cfg, kelas, senarai):
+    """Tulis senarai surah satu kelas ke config.
+
+    `sukatan` dibina semula sebagai dict BAHARU dan bukan diubah di tempat.
+    Dict bersarang di dalam config berkongsi rujukan dengan nilai lalai
+    dalam `store._CONFIG_LALAI` selagi fail config belum pernah menyimpan
+    kunci itu — mengubahnya di tempat akan menjadikan perubahan itu kekal
+    dalam modul, dan muncul semula pada setiap bacaan config yang lain.
+    """
+    sukatan = dict(cfg.get("sukatan") or {})
+    if senarai:
+        sukatan[kelas] = list(senarai)
+    else:
+        # Kelas tanpa sukatan dan kelas yang sukatannya dikosongkan guru
+        # berkelakuan sama sahaja. Menyimpan senarai kosong hanya menambah
+        # baris yang tidak bermakna ke dalam fail config.
+        sukatan.pop(kelas, None)
+    cfg["sukatan"] = sukatan
+    store.simpan_config(cfg)
+
+
+def sukatan_skrin(cfg):
+    """Sukatan hafazan sesuatu kelas — surah mana yang murid sedang hafaz.
+
+    Senarai ini memendekkan menu surah semasa merekod hafazan. Ia TIDAK
+    menghadkan apa yang boleh direkod: pilihan "Cari surah lain" sentiasa
+    ada, kerana guru selalunya perlu merekod murajaah surah lama yang
+    sudah keluar daripada sukatan.
+    """
+    ui.tajuk("Sukatan kelas")
+    kelas = _pilih_kelas_sukatan(cfg)
+    if kelas is None:
+        return
+
+    while True:
+        senarai = list((cfg.get("sukatan") or {}).get(kelas, []))
+
+        ui.tajuk(f"Sukatan · {kelas or 'Tanpa kelas'}")
+        if senarai:
+            print(ui.kotak(
+                [f"{i:>3}. {surah.nama_surah(n)}"
+                 f"  ({surah.ayat_surah(n)} ayat)"
+                 for i, n in enumerate(senarai, 1)],
+                tajuk="Surah dalam sukatan"))
+        else:
+            print(ui.kotak([
+                "  Sukatan kelas ini masih kosong.",
+                "",
+                "  Murid kelas ini akan melihat",
+                "  semua 114 surah semasa merekod",
+                "  hafazan.",
+            ]))
+        print()
+
+        pilihan = ui.pilih_dari_senarai("Sukatan", [
+            ("Tambah surah", "tambah"),
+            ("Buang surah", "buang"),
+            ("Susun ikut nombor surah", "susun"),
+            ("Kosongkan sukatan", "kosong"),
+        ])
+        if pilihan is None:
+            return
+
+        if pilihan == "tambah":
+            s = surah.pilih_surah()
+            if not s:
+                continue
+            if s[0] in senarai:
+                ui.amaran(f"{s[1]} sudah ada dalam sukatan.")
+                ui.jeda()
+                continue
+            senarai.append(s[0])
+
+        elif pilihan == "buang":
+            if not senarai:
+                ui.sebut("Tiada surah untuk dibuang.")
+                ui.jeda()
+                continue
+            n = ui.pilih_dari_senarai("Buang surah", [
+                (f"{surah.nama_surah(x)}  ({surah.ayat_surah(x)} ayat)", x)
+                for x in senarai
+            ])
+            if n is None:
+                continue
+            senarai.remove(n)
+
+        elif pilihan == "susun":
+            # Mengikut nombor surah, iaitu susunan mushaf — bukan susunan
+            # guru menambahnya. Itu susunan yang sama dengan senarai
+            # hafazan nanti, jadi apa yang dilihat di sini ialah apa yang
+            # dilihat semasa merekod.
+            senarai.sort()
+
+        elif pilihan == "kosong":
+            if not senarai:
+                continue
+            if not ui.tanya_ya(f"Kosongkan sukatan {kelas or 'tanpa kelas'}",
+                               lalai=False):
+                continue
+            senarai = []
+
+        _simpan_sukatan(cfg, kelas, senarai)
+        ui.jaya("Sukatan disimpan.")
 
 
 def skrin_kemas(cfg):

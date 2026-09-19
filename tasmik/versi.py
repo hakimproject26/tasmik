@@ -18,19 +18,20 @@ main.py — supaya `versi.json` yang dihantar ke telefon tidak boleh tak
 selaras dengan versi kod yang sebenarnya.
 """
 
-NOMBOR = "2.0.0"
+NOMBOR = "3.0.0"
 TARIKH = "19/09/2026"
 
 # Apa yang berubah pada versi SEMASA. Dipaparkan pada skrin Kemas Kini,
 # dan dihantar ke app melalui versi.json di pelayan.
 # Sejarah penuh ada dalam CHANGELOG.md.
 NOTA = [
-    "Arkib kemas kini kini DITANDATANGANI, dan app menolak apa-apa",
-    "yang tandatangannya tidak sah.",
-    "Pelayan kemas kini mesti menyediakan tasmik.tar.gz.sig — kalau",
-    "tidak, kemas kini akan ditolak. Jalankan bina.sh semula.",
-    "Rekod murid tidak pernah disentuh, sama ada kemas kini berjaya",
-    "atau ditolak.",
+    "Menu [1] kini Tasmik — pilih kelas, pilih jenis, isi borang.",
+    "Tilawah direkod ikut MUKA SURAT mushaf. Juzuk dan surah dikira",
+    "sendiri oleh app; guru hanya sahkan.",
+    "Hafazan kekal ikut surah dan ayat, dengan senarai surah setiap",
+    "kelas di  Tetapan ▸ [4] Sukatan kelas.",
+    "\"Pelajar\" kini dipanggil \"Murid\" di semua skrin.",
+    "Rekod lama tidak diubah. Sandaran diambil sebelum naik taraf.",
 ]
 
 

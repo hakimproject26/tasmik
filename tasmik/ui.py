@@ -255,6 +255,32 @@ def tanya_int(label, minimum=None, maksimum=None, lalai=None):
         return angka
 
 
+def tanya_ya(label, lalai=True):
+    """Soalan ya/tidak. Pulangkan True atau False. ENTER bermakna `lalai`.
+
+    Ditulis berasingan daripada `tanya()` kerana jawapan yang tidak
+    difahami mesti ditanya semula. `tanya()` memulangkan teks bebas, jadi
+    "yakin" akan diterima sebagai jawapan ya.
+    """
+    petunjuk = " [Y/n]" if lalai else " [y/N]"
+    while True:
+        try:
+            jawab = input(f"  {label}{petunjuk}: ").strip().lower()
+        except EOFError:
+            print()
+            raise InputTamat
+        except KeyboardInterrupt:
+            print()
+            raise
+        if not jawab:
+            return lalai
+        if jawab in ("y", "ya", "t", "true"):
+            return True
+        if jawab in ("n", "no", "tidak", "f", "false"):
+            return False
+        ralat("Sila jawab 'y' atau 'n'.")
+
+
 def pilih_dari_senarai(judul, item, label_batal="Batal", lebar_kotak=None):
     """
     Papar senarai bernombor dalam kotak dan minta pengguna memilih.

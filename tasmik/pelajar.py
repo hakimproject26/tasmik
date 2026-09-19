@@ -1,4 +1,4 @@
-"""Skrin pengurusan pelajar."""
+"""Skrin pengurusan murid."""
 
 import os
 import re
@@ -23,15 +23,15 @@ _RE_HIASAN = re.compile(r"^(?:\d{1,3}\s*[.)]\s*|[-•*·+]\s+|\d{1,3}\s+)")
 _RE_PEMISAH = re.compile(r"[;,\t|]")
 
 
-def pilih_pelajar(prompt="Pilih pelajar"):
-    """Pilih pelajar dari senarai, atau tambah baharu.
+def pilih_pelajar(prompt="Pilih murid"):
+    """Pilih murid dari senarai, atau tambah baharu.
 
-    Pulangkan baris pelajar, atau None kalau dibatalkan.
+    Pulangkan baris murid, atau None kalau dibatalkan.
     """
     senarai = store.semua_pelajar()
     if not senarai:
-        ui.sebut("Belum ada pelajar didaftarkan.")
-        if (ui.tanya("Tambah pelajar sekarang? (y/t)", "y") or "").lower().startswith("y"):
+        ui.sebut("Belum ada murid didaftarkan.")
+        if (ui.tanya("Tambah murid sekarang? (y/t)", "y") or "").lower().startswith("y"):
             return tambah_skrin()
         return None
 
@@ -39,7 +39,7 @@ def pilih_pelajar(prompt="Pilih pelajar"):
         (p["nama"] + (f"  ·  {p['kelas']}" if p["kelas"] else ""), p["id"])
         for p in senarai
     ]
-    item.append(("Tambah pelajar baharu", -1))
+    item.append(("Tambah murid baharu", -1))
 
     hasil = ui.pilih_dari_senarai(prompt, item)
     if hasil is None:
@@ -49,29 +49,52 @@ def pilih_pelajar(prompt="Pilih pelajar"):
     return store.dapat_pelajar(hasil)
 
 
+def pilih_pelajar_kelas(kelas, prompt="Pilih murid"):
+    """Pilih murid dalam satu kumpulan kelas sahaja.
+
+    `kelas` ialah nama kelas, atau "" untuk murid yang belum ada kelas.
+    Pulangkan baris murid, atau None kalau dibatalkan.
+
+    Tiada pilihan "tambah murid baharu" di sini, dan itu disengajakan:
+    aliran Tasmik ialah merekod bacaan. Menambah murid di tengah-tengahnya
+    menarik guru keluar daripada aliran itu, dan dia terpaksa memulakannya
+    semula selepas selesai.
+    """
+    senarai = [p for p in store.semua_pelajar() if (p["kelas"] or "") == kelas]
+    if not senarai:
+        ui.sebut("Tiada murid dalam kumpulan ini.")
+        ui.maklum("Tambah murid di menu Murid, atau pilih kumpulan lain.")
+        ui.jeda()
+        return None
+    hasil = ui.pilih_dari_senarai(prompt, [(p["nama"], p["id"]) for p in senarai])
+    if hasil is None:
+        return None
+    return store.dapat_pelajar(hasil)
+
+
 def tambah_skrin():
-    """Tambah pelajar baharu. Pulangkan baris pelajar, atau None."""
+    """Tambah murid baharu. Pulangkan baris murid, atau None."""
     print()
-    print(ui.kotak([], tajuk="Pelajar baharu"))
-    nama = ui.tanya_wajib("Nama pelajar")
+    print(ui.kotak([], tajuk="Murid baharu"))
+    nama = ui.tanya_wajib("Nama murid")
     sedia = store.cari_pelajar_nama(nama)
     if sedia:
         ui.amaran(f"'{nama}' sudah ada dalam senarai.")
         return sedia
     kelas = ui.tanya("Kelas (boleh kosong)", boleh_kosong=True)
     p = store.tambah_pelajar(nama, kelas)
-    ui.jaya(f"Pelajar '{nama}' telah ditambah.")
+    ui.jaya(f"Murid '{nama}' telah ditambah.")
     return p
 
 
 # ------------------------------------------------------- tambah pukal
 
 def hurai_senarai(teks):
-    """Hurai senarai pelajar daripada teks bebas.
+    """Hurai senarai murid daripada teks bebas.
 
     Menerima senarai yang ditampal dari WhatsApp, disalin dari Excel,
     atau ditaip sendiri — tanpa memaksa satu format yang tepat. Yang
-    penting hanya dua: satu pelajar satu baris, dan nama didahulukan.
+    penting hanya dua: satu murid satu baris, dan nama didahulukan.
 
         Ahmad Zaki, Tahun 4
         2. Nurul Huda - Tahun 5
@@ -140,7 +163,7 @@ def _baca_tampal():
         "  - Siti Aminah; Tahun 6",
         "  Muhammad Adam bin Abdullah",
         "",
-        "  Satu pelajar satu baris.",
+        "  Satu murid satu baris.",
         "  Nama dahulu, kelas kemudian.",
         "  Kelas tidak wajib.",
     ], tajuk="Contoh bentuk yang diterima"))
@@ -192,7 +215,7 @@ def _papar_hurai(senarai, gagal, berganda, sedia_ada):
     print()
     print(ui.kotak([
         ui.baris_kv("Dibaca       ", f"{len(senarai) + len(gagal)} baris"),
-        ui.baris_kv("Pelajar baharu", str(len(baharu))),
+        ui.baris_kv("Murid baharu", str(len(baharu))),
         ui.baris_kv("Sudah ada    ", str(len(senarai) - len(baharu))),
         ui.baris_kv("Tak difahami ", str(len(gagal))),
     ]))
@@ -206,7 +229,7 @@ def _papar_hurai(senarai, gagal, berganda, sedia_ada):
         print(ui.kotak(papar, tajuk="Akan ditambah"))
     else:
         print()
-        ui.maklum("Tiada pelajar baharu untuk ditambah.")
+        ui.maklum("Tiada murid baharu untuk ditambah.")
 
     if gagal:
         print()
@@ -271,7 +294,7 @@ def contoh_format_skrin():
         "  Ahmad Zaki,Tahun 4",
         "",
         "  Baris kepala dari fail Excel",
-        "  dilangkau, bukan jadi pelajar.",
+        "  dilangkau, bukan jadi murid.",
     ], tajuk="5 · Salinan dari Excel"))
 
     print(ui.kotak([
@@ -290,9 +313,9 @@ def contoh_format_skrin():
 
 
 def tambah_pukal_skrin():
-    """Tambah ramai pelajar sekali gus — tampal senarai, atau baca fail."""
+    """Tambah ramai murid sekali gus — tampal senarai, atau baca fail."""
     while True:
-        ui.tajuk("Tambah senarai pelajar")
+        ui.tajuk("Tambah senarai murid")
 
         pilihan = ui.pilih_dari_senarai("Dari mana senarai itu", [
             ("Tampal / taip di sini", "tampal"),
@@ -320,10 +343,10 @@ def tambah_pukal_skrin():
             "  - Siti Aminah; Tahun 6",
             "",
             "  Isi fail mesti sama bentuknya —",
-            "  satu pelajar satu baris.",
+            "  satu murid satu baris.",
         ], tajuk="Contoh isi fail"))
         print()
-        ui.maklum("Contoh laluan: ~/storage/downloads/pelajar.csv")
+        ui.maklum("Contoh laluan: ~/storage/downloads/murid.csv")
         ui.maklum("Di Termux, jalankan 'termux-setup-storage' sekali dahulu")
         ui.maklum("supaya fail dari folder Download boleh dibaca.")
         laluan = ui.tanya("Laluan fail", boleh_kosong=True)
@@ -366,20 +389,20 @@ def tambah_pukal_skrin():
         store.tambah_pelajar_banyak(baharu)
     except Exception as e:  # noqa: BLE001 — jangan tinggalkan guru dengan separuh senarai
         ui.ralat(f"Gagal menyimpan: {e}")
-        ui.maklum("Tiada pelajar disimpan — senarai lama masih utuh.")
+        ui.maklum("Tiada murid disimpan — senarai lama masih utuh.")
         ui.jeda()
         return
 
     print()
-    ui.jaya(f"{len(baharu)} pelajar telah ditambah.")
+    ui.jaya(f"{len(baharu)} murid telah ditambah.")
     ui.jeda()
 
 
 def senarai_skrin():
-    ui.tajuk("Senarai pelajar")
+    ui.tajuk("Senarai murid")
     senarai = store.semua_pelajar()
     if not senarai:
-        ui.sebut("Belum ada pelajar didaftarkan.")
+        ui.sebut("Belum ada murid didaftarkan.")
         ui.jeda()
         return
 
@@ -397,14 +420,14 @@ def senarai_skrin():
             keterangan += f"  ·  terakhir {ui.tarikh_pendek(akhir)}"
         baris.append(keterangan)
 
-    print(ui.kotak(baris, tajuk="Pelajar"))
+    print(ui.kotak(baris, tajuk="Murid"))
     print()
-    ui.maklum(f"Jumlah: {len(senarai)} pelajar")
+    ui.maklum(f"Jumlah: {len(senarai)} murid")
     ui.jeda()
 
 
 def tukar_skrin():
-    ui.tajuk("Tukar maklumat pelajar")
+    ui.tajuk("Tukar maklumat murid")
     p = pilih_pelajar()
     if not p:
         return
@@ -421,7 +444,7 @@ def tukar_skrin():
     # pelajar lain, SQLite akan membaling IntegrityError — ditangkap di
     # sini supaya ia jadi ayat yang boleh difahami, bukan jejak ralat.
     if nama != p["nama"] and store.cari_pelajar_nama(nama):
-        ui.ralat(f"Sudah ada pelajar bernama '{nama}'.")
+        ui.ralat(f"Sudah ada murid bernama '{nama}'.")
         ui.jeda()
         return
 
@@ -431,7 +454,7 @@ def tukar_skrin():
 
 
 def padam_skrin():
-    ui.tajuk("Padam pelajar")
+    ui.tajuk("Padam murid")
     p = pilih_pelajar()
     if not p:
         return
@@ -449,15 +472,15 @@ def padam_skrin():
 
 
 def skrin():
-    """Submenu pengurusan pelajar."""
+    """Submenu pengurusan murid."""
     while True:
-        ui.tajuk("Pelajar")
+        ui.tajuk("Murid")
         print(ui.kotak([
-            "  1.  Senarai pelajar",
-            "  2.  Tambah pelajar",
+            "  1.  Senarai murid",
+            "  2.  Tambah murid",
             "  3.  Tambah senarai (pukal)",
             "  4.  Tukar nama / kelas",
-            "  5.  Padam pelajar",
+            "  5.  Padam murid",
             "",
             "  0.  Kembali",
         ]))

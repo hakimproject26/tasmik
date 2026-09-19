@@ -18,7 +18,7 @@ Kod app di:             folder ini
 import sys
 from datetime import date
 
-from tasmik import (eksport, laporan, pelajar, rekod, store, surah,
+from tasmik import (eksport, laporan, mushaf, pelajar, rekod, store, surah,
                     tetapan, ui)
 
 # Hasil semakan kemas kini semasa app dibuka. None = tiada versi baharu.
@@ -36,14 +36,14 @@ def skrin_utama(cfg):
 
     print()
     ui.maklum(ui.tarikh_my(date.today().isoformat(), dengan_hari=True))
-    ui.maklum(f"{store.jumlah_pelajar()} pelajar  ·  "
+    ui.maklum(f"{store.jumlah_pelajar()} murid  ·  "
               f"{store.bilangan_rekod_hari_ini()} rekod hari ini")
     print()
 
     item = [
-        "  1.  Tambah rekod tasmi'",
+        "  1.  Tasmik",
         "  2.  Rekod terkini",
-        "  3.  Pelajar",
+        "  3.  Murid",
         "  4.  Laporan kemajuan",
         "  5.  Export ke CSV",
         "  6.  Sandaran data",
@@ -68,6 +68,10 @@ def main():
     # rekod yang disimpan selepas ini akan membawa nombor surah yang salah
     # — lebih baik app enggan dibuka daripada menyimpan data yang cacat.
     surah.semak()
+    # Jadual halaman mushaf disemak atas sebab yang sama: satu halaman yang
+    # tersalah dalam jadual bermakna setiap rekod tilawah selepas itu
+    # membawa juzuk dan surah yang salah, dan guru tidak akan perasan.
+    mushaf.semak()
 
     cfg = store.baca_config()
     _KEMAS = tetapan.semak_awal(cfg)
@@ -79,7 +83,7 @@ def main():
             continue
 
         if pilihan == "1":
-            rekod.tambah_skrin()
+            rekod.sesi_skrin(cfg)
         elif pilihan == "2":
             rekod.senarai_skrin()
         elif pilihan == "3":

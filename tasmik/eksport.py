@@ -25,16 +25,26 @@ def csv_skrin():
     with open(laluan, "w", newline="", encoding="utf-8-sig") as f:
         penulis = csv.writer(f)
         penulis.writerow([
-            "Pelajar", "Kelas", "Tarikh", "Jenis", "Surah", "No. Surah",
-            "Ayat Dari", "Ayat Hingga", "Bilangan Ayat", "Juzuk", "Nota",
+            "Murid", "Kelas", "Tarikh", "Jenis", "Muka Surat", "Surah",
+            "No. Surah", "Ayat Dari", "Ayat Hingga", "Bilangan Ayat",
+            "Juzuk", "Nota",
         ])
         for r in baris:
+            # Rekod tilawah ikut halaman tiada julat ayat. Sel itu dibiarkan
+            # KOSONG, bukan diisi sifar: kosong bermakna "tiada julat", dan
+            # sifar bermakna "ayat sifar". Dalam Excel, `=SUM()` mengabaikan
+            # sel kosong dan mengira sifar — jadi memilih sifar akan
+            # merosakkan jumlah ayat guru tanpa sebarang amaran.
+            ayat = ("" if r["ayat_dari"] is None
+                    else r["ayat_hingga"] - r["ayat_dari"] + 1)
             penulis.writerow([
                 r["nama_pelajar"], r["kelas"] or "", r["tarikh"],
                 store.JENIS_NAMA.get(r["jenis"], r["jenis"]),
+                r["muka_surat"] if r["muka_surat"] else "",
                 surah.nama_surah(r["surah_no"]), r["surah_no"],
-                r["ayat_dari"], r["ayat_hingga"],
-                r["ayat_hingga"] - r["ayat_dari"] + 1,
+                r["ayat_dari"] if r["ayat_dari"] is not None else "",
+                r["ayat_hingga"] if r["ayat_hingga"] is not None else "",
+                ayat,
                 r["juzuk"] or "", r["nota"] or "",
             ])
 

@@ -26,9 +26,17 @@ DIR_EXPORT = os.path.join(DIR_DATA, "export")
 FAIL_DB = os.path.join(DIR_DATA, "tasmik.db")
 FAIL_CONFIG = os.path.join(DIR_DATA, "config.json")
 
+# Kunci yang dikenali oleh app. `baca_config()` menapis terhadap senarai
+# ini, jadi kunci yang TIDAK disenaraikan di sini akan dibuang secara
+# senyap setiap kali config dibaca — tanpa ralat, tanpa amaran, dan tanpa
+# sebarang cara guru mengetahuinya. Setiap kunci baharu mesti ditambah di
+# sini, bukan hanya ditulis oleh `simpan_config()`.
 _CONFIG_LALAI = {
     "sumber_kemas": "",
     "semak_kemas": True,
+    # Sukatan hafazan setiap kelas, cth {"Kelas pagi": [78, 79, 80]}.
+    # Kunci ialah nama kelas sebagaimana ditaip pada murid.
+    "sukatan": {},
 }
 
 _CONN = None
@@ -71,9 +79,10 @@ def init_db():
             tarikh      TEXT    NOT NULL,
             jenis       TEXT    NOT NULL,
             surah_no    INTEGER NOT NULL,
-            ayat_dari   INTEGER NOT NULL,
-            ayat_hingga INTEGER NOT NULL,
+            ayat_dari   INTEGER,
+            ayat_hingga INTEGER,
             juzuk       TEXT,
+            muka_surat  INTEGER,
             nota        TEXT,
             dicipta     TEXT    NOT NULL
         );
@@ -83,13 +92,141 @@ def init_db():
         """
     )
     conn.commit()
+    # Jadual yang SUDAH ADA tidak disentuh oleh `CREATE TABLE IF NOT EXISTS`
+    # di atas. Pangkalan data di telefon guru dicipta oleh versi lama, jadi
+    # lajur baharu mesti ditambah secara eksplisit.
+    _naik_taraf()
+
+
+# ------------------------------------------------------------- naik taraf
+
+# Sandaran dinamakan sempena versi yang MEMPERKENALKAN perubahan itu, bukan
+# versi lama — supaya namanya memberitahu apa yang berlaku.
+_NAMA_SANDARAN = "tasmik-sebelum-3.0.0.db"
+
+
+def _lajur(conn, jadual):
+    """Nama lajur sesuatu jadual. Set kosong kalau jadual itu tiada."""
+    return {b["name"] for b in conn.execute(f"PRAGMA table_info({jadual})")}
+
+
+def _naik_taraf():
+    """Naik taraf pangkalan data lama ke skema v3. True kalau ia berubah.
+
+    Versi sebelum v3 menyimpan tilawah ikut julat ayat, dan `ayat_dari` /
+    `ayat_hingga` ialah NOT NULL. Tilawah ikut halaman TIADA julat ayat —
+    halaman bukan bilangan ayat — jadi menyimpan nilai palsu di situ akan
+    merosakkan `SUM(ayat_hingga - ayat_dari + 1)` dalam ringkasan pelajar.
+    Kedua-dua lajur itu mesti jadi nullable, dan SQLite tidak boleh
+    melonggarkan NOT NULL pada jadual yang sudah wujud: jadual itu mesti
+    dibina semula.
+
+    Ini menyentuh rekod murid sebenar pada telefon guru, jadi ia dilakukan
+    dengan berhati-hati yang berlebihan:
+
+      - sandaran fail penuh diambil DAHULU, melalui API sandaran SQLite dan
+        bukan salinan fail biasa — salinan fail boleh menangkap fail yang
+        separuh ditulis kalau app mati pada saat yang salah
+      - semuanya dalam SATU transaksi; sebarang ralat membatalkannya dan
+        fail asal tidak disentuh langsung
+      - bilangan baris dibandingkan sebelum dan selepas menyalin
+      - `foreign_key_check` dijalankan sebelum komit
+
+    Nota: `PRAGMA foreign_keys` tidak boleh diubah di dalam transaksi, jadi
+    ia ditetapkan pada sambungan BERASINGAN yang wujud hanya untuk migrasi
+    ini. Sambungan utama app tidak diubah sama sekali.
+    """
+    conn = db()
+    lajur = _lajur(conn, "rekod")
+    if not lajur or "muka_surat" in lajur:
+        # Pangkalan data baharu (sudah skema v3), atau tiada jadual rekod.
+        return False
+
+    conn.commit()          # pastikan fail di cakera sudah terkini
+
+    os.makedirs(DIR_SANDARAN, exist_ok=True)
+    sandaran = os.path.join(DIR_SANDARAN, _NAMA_SANDARAN)
+    if not os.path.exists(sandaran):
+        # Ditulis SEKALI sahaja. Menulis ganti bermakna migrasi kedua yang
+        # gagal boleh memusnahkan satu-satunya salinan yang baik.
+        dst = sqlite3.connect(sandaran)
+        try:
+            conn.backup(dst)
+        finally:
+            dst.close()
+
+    mig = sqlite3.connect(FAIL_DB, isolation_level=None)
+    try:
+        mig.execute("PRAGMA foreign_keys = OFF")
+        mig.execute("BEGIN IMMEDIATE")
+        mig.execute(
+            """
+            CREATE TABLE rekod_baharu (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                pelajar_id  INTEGER NOT NULL
+                            REFERENCES pelajar(id) ON DELETE CASCADE,
+                tarikh      TEXT    NOT NULL,
+                jenis       TEXT    NOT NULL,
+                surah_no    INTEGER NOT NULL,
+                ayat_dari   INTEGER,
+                ayat_hingga INTEGER,
+                juzuk       TEXT,
+                muka_surat  INTEGER,
+                nota        TEXT,
+                dicipta     TEXT    NOT NULL
+            )
+            """
+        )
+        mig.execute(
+            """
+            INSERT INTO rekod_baharu
+                (id, pelajar_id, tarikh, jenis, surah_no, ayat_dari,
+                 ayat_hingga, juzuk, muka_surat, nota, dicipta)
+            SELECT id, pelajar_id, tarikh, jenis, surah_no, ayat_dari,
+                   ayat_hingga, juzuk, NULL, nota, dicipta
+            FROM rekod
+            """
+        )
+        lama = mig.execute("SELECT COUNT(*) FROM rekod").fetchone()[0]
+        baharu = mig.execute("SELECT COUNT(*) FROM rekod_baharu").fetchone()[0]
+        if lama != baharu:
+            raise RuntimeError(
+                f"Migrasi menyalin {baharu} daripada {lama} baris rekod."
+            )
+        mig.execute("DROP TABLE rekod")
+        mig.execute("ALTER TABLE rekod_baharu RENAME TO rekod")
+        rosak = mig.execute("PRAGMA foreign_key_check").fetchall()
+        if rosak:
+            raise RuntimeError(f"Migrasi menghasilkan {len(rosak)} rekod yatim.")
+        mig.execute("CREATE INDEX idx_rekod_pelajar ON rekod(pelajar_id, tarikh)")
+        mig.execute("CREATE INDEX idx_rekod_tarikh ON rekod(tarikh)")
+        mig.execute("COMMIT")
+    except Exception:
+        try:
+            mig.execute("ROLLBACK")
+        except sqlite3.Error:
+            pass
+        raise
+    finally:
+        mig.close()
+
+    # Sambungan utama masih memegang skema lama dalam cache-nya.
+    tutup()
+    db()
+    return True
 
 
 # ------------------------------------------------------------------ tetapan
 
 def baca_config():
     """Baca ~/.tasmik/config.json. Sentiasa pulangkan dict yang lengkap."""
-    cfg = dict(_CONFIG_LALAI)
+    # Nilai bersarang disalin, bukan dikongsi. `dict()` cetek sahaja: tanpanya
+    # `cfg["sukatan"]` ialah objek YANG SAMA dengan lalai dalam
+    # `_CONFIG_LALAI` selagi fail config belum pernah menyimpan kunci itu —
+    # jadi mengubahnya di skrin tetapan akan mengubah lalai modul, dan
+    # perubahan itu muncul semula pada setiap bacaan config selepas itu.
+    cfg = {k: (dict(v) if isinstance(v, dict) else v)
+           for k, v in _CONFIG_LALAI.items()}
     try:
         with open(FAIL_CONFIG, encoding="utf-8") as f:
             data = json.load(f)
@@ -135,7 +272,7 @@ def cari_pelajar_nama(nama):
 def nama_pelajar(pid):
     p = dapat_pelajar(pid)
     if not p:
-        return "(pelajar dipadam)"
+        return "(murid dipadam)"
     return p["nama"] + (f" ({p['kelas']})" if p["kelas"] else "")
 
 
@@ -205,21 +342,66 @@ def jumlah_pelajar():
     ).fetchone()[0]
 
 
+def senarai_kelas():
+    """[(nama_kelas, bilangan_murid), ...] — disusun mengikut abjad.
+
+    `kelas` ialah teks bebas yang ditaip pada setiap murid; tiada senarai
+    kelas yang ditetapkan di mana-mana dalam app ini. Jadi menu kelas
+    dibina daripada apa yang benar-benar ada dalam pangkalan data.
+
+    Murid tanpa kelas dikumpulkan di bawah kunci "" dan sentiasa di
+    HUJUNG, supaya ia tidak muncul di tengah-tengah kelas sebenar.
+    """
+    hasil = []
+    for b in db().execute(
+        """
+        SELECT kelas, COUNT(*) AS n FROM pelajar
+        WHERE aktif = 1 AND kelas IS NOT NULL AND kelas <> ''
+        GROUP BY kelas ORDER BY kelas COLLATE NOCASE
+        """
+    ):
+        hasil.append((b["kelas"], b["n"]))
+    kosong = db().execute(
+        "SELECT COUNT(*) FROM pelajar WHERE aktif = 1 "
+        "AND (kelas IS NULL OR kelas = '')"
+    ).fetchone()[0]
+    if kosong:
+        hasil.append(("", kosong))
+    return hasil
+
+
 # ------------------------------------------------------------------ rekod
 
-def tambah_rekod(pelajar_id, tarikh, jenis, surah_no, dari, hingga,
-                 juzuk=None, nota=None):
+def tambah_rekod(pelajar_id, tarikh, jenis, surah_no, dari=None, hingga=None,
+                 juzuk=None, nota=None, muka_surat=None):
+    """Simpan satu rekod tasmi'.
+
+    Dua bentuk rekod wujud, dan sekurang-kurangnya satu mesti lengkap:
+
+      - **ikut julat ayat** — `dari` dan `hingga` diisi. Ini hafazan, dan
+        juga tilawah yang direkod cara lama sebelum v3.
+      - **ikut halaman** — `muka_surat` diisi dan julat ayat NULL. Ini
+        tilawah sejak v3.0.0. Halaman bukan bilangan ayat, jadi tiada julat
+        yang jujur boleh diisi; menyimpan julat palsu akan menggelembungkan
+        jumlah ayat dalam laporan.
+
+    Kedua-duanya dikehendaki supaya rekod lama kekal sah dan tidak perlu
+    ditukar.
+    """
+    if muka_surat is None and (dari is None or hingga is None):
+        raise ValueError("Rekod mesti ada julat ayat atau muka surat.")
     conn = db()
     cur = conn.execute(
         """
         INSERT INTO rekod
             (pelajar_id, tarikh, jenis, surah_no, ayat_dari, ayat_hingga,
-             juzuk, nota, dicipta)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+             juzuk, muka_surat, nota, dicipta)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             pelajar_id, tarikh, jenis, surah_no, dari, hingga,
-            juzuk, nota or None, datetime.now().isoformat(timespec="seconds"),
+            juzuk, muka_surat, nota or None,
+            datetime.now().isoformat(timespec="seconds"),
         ),
     )
     conn.commit()
@@ -248,10 +430,15 @@ def cari_rekod(where="", params=(), had=None):
 
 
 def rekod_untuk_eksport():
+    # Senarai lajur EKSPLISIT. Lajur baharu tidak muncul di sini dengan
+    # sendirinya — tidak seperti `cari_rekod()` yang guna `r.*`. Kalau
+    # `r.muka_surat` dilupakan, CSV akan senyap-senyap kehilangan halaman
+    # dan tiada apa pun yang gagal.
     return db().execute(
         """
         SELECT p.nama AS nama_pelajar, p.kelas, r.tarikh, r.jenis,
-               r.surah_no, r.ayat_dari, r.ayat_hingga, r.juzuk, r.nota
+               r.surah_no, r.ayat_dari, r.ayat_hingga, r.juzuk,
+               r.muka_surat, r.nota
         FROM rekod r JOIN pelajar p ON p.id = r.pelajar_id
         ORDER BY p.nama COLLATE NOCASE, r.tarikh, r.id
         """
@@ -278,13 +465,14 @@ def ringkasan_pelajar(pid):
     hasil = {
         "sesi_tilawah": 0, "ayat_tilawah": 0,
         "sesi_hafazan": 0, "ayat_hafazan": 0,
-        "juzuk": set(), "surah_hafazan": set(),
+        "juzuk": set(), "surah_hafazan": set(), "halaman": set(),
         "akhir": None, "akhir_hafazan": None,
     }
 
     for baris in conn.execute(
         """
-        SELECT jenis, COUNT(*) AS sesi, SUM(ayat_hingga - ayat_dari + 1) AS ayat
+        SELECT jenis, COUNT(*) AS sesi,
+               SUM(COALESCE(ayat_hingga - ayat_dari + 1, 0)) AS ayat
         FROM rekod WHERE pelajar_id = ? GROUP BY jenis
         """,
         (pid,),
@@ -302,6 +490,17 @@ def ringkasan_pelajar(pid):
         (pid,),
     ):
         hasil["juzuk"] |= surah.hurai_juzuk(baris["juzuk"])
+
+    # Halaman dikira berasingan daripada ayat. Rekod tilawah ikut halaman
+    # tiada julat ayat langsung, jadi tanpa kiraan ini laporan akan berkata
+    # "0 ayat" bagi murid yang jelas membaca — betul secara teknikal, tetapi
+    # mengelirukan sesiapa yang membacanya.
+    for baris in conn.execute(
+        """SELECT DISTINCT muka_surat FROM rekod
+           WHERE pelajar_id = ? AND muka_surat IS NOT NULL""",
+        (pid,),
+    ):
+        hasil["halaman"].add(baris["muka_surat"])
 
     for baris in conn.execute(
         "SELECT DISTINCT surah_no FROM rekod WHERE pelajar_id = ? AND jenis = ?",

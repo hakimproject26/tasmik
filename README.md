@@ -118,9 +118,50 @@ dalam `CHANGELOG.md`, kemudian jalankan `bina.sh` semula.
 
 ---
 
-## Tambah pelajar secara pukal
+## Rekod tasmi' — menu `[1] Tasmik`
 
-Untuk mendaftarkan murid baharu, pergi ke `Pelajar ▸ [3] Tambah senarai (pukal)`.
+Aliran tiga langkah, mengikut susunan guru berada di dalam kelas:
+
+```
+[1] Tasmik  →  kelas        (Kelas pagi / Kelas petang / Tanpa kelas)
+            →  jenis        (Tilawah / Hafazan)
+            →  borang
+```
+
+Senarai kelas dibina daripada kelas yang ada pada murid — guru tidak perlu
+menyelenggara senarai kelas di tempat kedua.
+
+**Tilawah** direkod ikut **muka surat mushaf**, bukan ikut surah dan ayat.
+Guru menaip satu nombor sahaja:
+
+```
+  Muka surat mushaf (1-604): 587
+
+╭─ Halaman ini ────────────────────────────────╮
+│   Halaman 587                                │
+│   Juzuk 30   ·   Al-Infitar, Al-Mutaffifin   │
+╰──────────────────────────────────────────────╯
+  Betul [Y/n]:
+```
+
+Juzuk dan surah dikira sendiri oleh app. Guru **sahkan** — kerana mushaf
+guru mungkin berbeza, dan dia satu-satunya yang boleh nampak perbezaan itu.
+
+**Hafazan** kekal ikut surah dan ayat. Senarai surah dipendekkan kepada
+sukatan kelas itu (lihat di bawah), dan had atas julat ayat ialah bilangan
+ayat **sebenar** surah itu. Pilihan "Cari surah lain (114)" sentiasa ada
+untuk murajaah surah lama.
+
+### Sukatan hafazan setiap kelas — `Tetapan ▸ [4] Sukatan kelas`
+
+Senarai surah yang murid sesuatu kelas sedang hafaz. Ia memendekkan menu
+surah semasa merekod; ia **tidak** menghadkan apa yang boleh direkod.
+
+---
+
+## Tambah murid secara pukal
+
+Untuk mendaftarkan murid baharu, pergi ke `Murid ▸ [3] Tambah senarai (pukal)`.
 Ada dua cara: **tampal senarai** terus ke dalam app, atau **baca dari fail**
 `.txt` / `.csv`.
 
@@ -151,7 +192,7 @@ mencapai folder Download:
 termux-setup-storage
 ```
 
-Kemudian laluannya seperti `~/storage/downloads/pelajar.csv`.
+Kemudian laluannya seperti `~/storage/downloads/murid.csv`.
 
 ---
 
@@ -159,8 +200,8 @@ Kemudian laluannya seperti `~/storage/downloads/pelajar.csv`.
 
 ```
 ~/.tasmik/
-├── tasmik.db      pangkalan data (pelajar + rekod)
-├── config.json    tetapan app
+├── tasmik.db      pangkalan data (murid + rekod)
+├── config.json    tetapan app, termasuk sukatan hafazan setiap kelas
 ├── export/        fail CSV
 └── sandaran/      salinan pangkalan data
 ```
@@ -170,6 +211,17 @@ sahaja — rekod murid tidak pernah disentuh. Jadi pemasangan semula pun
 tidak memadam data.
 
 Untuk pindah ke telefon baharu, salin folder `~/.tasmik/` sepenuhnya.
+
+**Naik taraf v2 → v3.** Versi 3 menyimpan tilawah ikut halaman, jadi jadual
+`rekod` perlu dibina semula. Apabila app dibuka kali pertama selepas kemas
+kini, ia menyalin pangkalan data ke
+`~/.tasmik/sandaran/tasmik-sebelum-3.0.0.db` **dahulu**, kemudian barulah
+mengubahnya — semuanya dalam satu transaksi. Kalau mana-mana langkah gagal,
+ia membatalkan diri dan fail asal tidak disentuh langsung.
+
+Rekod tilawah yang direkod sebelum v3 tiada halaman. Ia tidak pernah
+ditukar: ia kekal dipaparkan ikut surah dan ayat seperti dahulu, dan
+kedua-dua bentuk boleh wujud bersama dalam satu senarai.
 
 ---
 
@@ -183,8 +235,9 @@ Untuk pindah ke telefon baharu, salin folder `~/.tasmik/` sepenuhnya.
 │   ├── ui.py              kotak, warna, input, tarikh
 │   ├── store.py           semua SQL ada di sini, tiada di tempat lain
 │   ├── surah.py           jadual 114 surah + carian nama
-│   ├── pelajar.py         skrin pelajar
-│   ├── rekod.py           skrin rekod tasmi'
+│   ├── mushaf.py          jadual halaman mushaf (114 + 30 integer)
+│   ├── pelajar.py         skrin murid
+│   ├── rekod.py           aliran Tasmik, senarai rekod
 │   ├── laporan.py         laporan kemajuan dan sejarah
 │   ├── eksport.py         CSV dan sandaran
 │   ├── kemas.py           enjin kemas kini
@@ -192,7 +245,9 @@ Untuk pindah ke telefon baharu, salin folder `~/.tasmik/` sepenuhnya.
 │   └── tetapan.py         skrin tetapan
 ├── ujian/                 ujian — tidak sampai ke telefon
 │   ├── test_tandatangan.py  vektor RFC 8032 + kes berniat jahat
-│   └── test_kemas.py        gat tandatangan, hujung-ke-hujung
+│   ├── test_kemas.py        gat tandatangan, hujung-ke-hujung
+│   ├── test_mushaf.py       halaman sempadan, surah berkongsi halaman
+│   └── test_naik_taraf.py   migrasi skema v2 → v3, baris demi baris
 └── alat/                  perkakas pelayan — tidak sampai ke telefon
     ├── bina.sh            bina + tanda + sahkan ke ~/serve-tasmik/
     ├── tanda.py           jana kunci, tandatangan, sahkan, padan

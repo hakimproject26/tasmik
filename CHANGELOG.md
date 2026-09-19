@@ -12,6 +12,79 @@ Setiap kali nombor dalam `tasmik/versi.py` naik, catat sebabnya di sini.
 
 ---
 
+## v3.0.0 — 19/09/2026
+
+**Menu Tasmik** — satu aliran tiga langkah, dan tilawah kini direkod ikut
+**muka surat mushaf**.
+
+Ini perubahan MAJOR kerana tiga perkara yang lama memang tak berfungsi lagi:
+menu `[1] Tambah rekod tasmi'` **dibuang**, dan cara tilawah direkod
+**berubah** — guru menaip nombor halaman, bukan nombor surah dan ayat.
+
+**Aliran baharu**
+
+    [1] Tasmik  →  kelas (pagi / petang / tanpa kelas)
+                →  jenis (tilawah / hafazan)
+                →  borang
+
+Kelas datang daripada murid — menu kelas dibina daripada apa yang benar-benar
+ada, jadi guru tidak perlu menyelenggara senarai kelas di tempat kedua.
+
+**Tilawah ikut halaman**
+
+Guru menaip satu nombor: muka surat mushaf (1–604, mushaf Madinah). App
+mengira juzuk dan surah sendiri, memaparkannya, dan guru **sahkan** — kerana
+mushaf guru mungkin berbeza, dan dia satu-satunya yang boleh nampak
+perbezaan itu.
+
+Ini bermakna `ayat_dari` dan `ayat_hingga` mesti jadi *nullable*: halaman
+bukan bilangan ayat, dan menyimpan julat palsu akan menggelembungkan jumlah
+ayat dalam laporan. Jadual `rekod` dibina semula untuk melonggarkan
+`NOT NULL` — SQLite tidak boleh melakukannya pada jadual yang sudah wujud.
+
+**Naik taraf pangkalan data**
+
+Ini satu-satunya bahagian yang menyentuh rekod murid yang sebenar, jadi ia
+dilakukan dengan berhati-hati yang berlebihan:
+
+- Sandaran penuh diambil **dahulu** ke
+  `~/.tasmik/sandaran/tasmik-sebelum-3.0.0.db`, melalui API sandaran SQLite
+  dan bukan salinan fail biasa — salinan fail boleh menangkap fail yang
+  separuh ditulis kalau app mati pada saat yang salah.
+- Semuanya dalam **satu transaksi**. Sebarang ralat → `ROLLBACK`, fail asal
+  tidak disentuh langsung.
+- Bilangan baris dibandingkan sebelum dan selepas menyalin, dan
+  `foreign_key_check` dijalankan sebelum komit.
+- Dilangkau sepenuhnya kalau lajur `muka_surat` sudah ada, jadi ia selamat
+  dijalankan dua kali.
+
+Rekod tilawah yang **sudah ada** tiada halaman. Ia tidak pernah ditukar — ia
+kekal dipaparkan ikut surah dan ayat seperti dahulu, dan kedua-dua bentuk
+boleh wujud bersama dalam satu senarai.
+
+**Hafazan**
+
+Kekal ikut surah dan ayat, dengan satu perubahan: had atas julat ayat kini
+ialah **bilangan ayat sebenar** surah itu, bukan 110 untuk semua. "Al-Mulk
+ayat 50" kini ditolak, bukan disimpan tanpa amaran.
+
+Senarai surah setiap kelas ditetapkan di **Tetapan ▸ [4] Sukatan kelas**.
+Pilihan "Cari surah lain (114)" sentiasa ada, kerana guru selalunya perlu
+merekod murajaah surah lama yang sudah keluar daripada sukatan.
+
+**Lain-lain**
+
+- "Pelajar" jadi **"Murid"** pada semua teks paparan. Nama fail, jadual SQL,
+  dan fungsi dalaman tidak diubah — yang penting ialah apa yang dilihat di
+  skrin.
+- CSV: tajuk `Pelajar` → `Murid`, dan lajur `Muka Surat` ditambah. Sel julat
+  ayat bagi rekod ikut halaman dibiarkan **kosong**, bukan sifar — dalam
+  Excel, `=SUM()` mengabaikan sel kosong dan mengira sifar.
+- Laporan memaparkan bilangan halaman di samping bilangan ayat, supaya murid
+  yang membaca tidak dilaporkan sebagai "0 ayat".
+
+---
+
 ## v2.0.0 — 19/09/2026
 
 **Arkib kemas kini ditandatangani** — app menolak apa-apa yang
