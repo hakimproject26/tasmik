@@ -1,0 +1,16 @@
+# Data peribadi — nama murid dan rekod tasmi'.
+# Jangan sekali-kali masuk git.
+data/
+
+# Sisa Python
+__pycache__/
+*.pyc
+
+# Salinan kod lama sebelum kemas kini
+.backup/
+
+# Fail yang dihasilkan oleh alat/bina.sh
+# (sebenarnya ia pergi ke ~/serve-tasmik/, di luar repo ini —
+#  baris ini hanya jaring keselamatan kalau ia tersalah diletak)
+tasmik.tar.gz
+versi.json
