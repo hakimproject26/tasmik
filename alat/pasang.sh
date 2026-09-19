@@ -211,9 +211,18 @@ echo "  ✓ rekod murid di ~/.tasmik/ tidak disentuh"
 # Yang ditulis hanyalah SATU tetapan. Rekod murid tidak pernah disentuh —
 # ia fail yang berbeza sama sekali.
 #
-# Kalau sumber SUDAH ditetapkan, ia DIKEKALKAN. Guru yang menaip sesuatu
-# di Tetapan membuat tindakan yang disengajakan, dan menimpanya secara
-# senyap lebih memudaratkan daripada satu langkah tambahan.
+# Kalau sumber SUDAH ada dan BERBEZA, ia DIGANTI — bukan dikekalkan.
+#
+# Versi pertama langkah ini mengekalkannya, atas alasan "guru yang menaip
+# di Tetapan membuat tindakan yang disengajakan". Itu silap, dan ujian
+# sebenar menunjukkan kenapa: guru yang memasang semula dari GitHub untuk
+# melepaskan diri daripada pelayan LAN berakhir dengan kod BAHARU tetapi
+# sumber LAMA. App berjalan pada v2.0.0 sambil terus mencari laptop —
+# keadaan separuh jalan yang tidak kelihatan sehingga laptop itu dimatikan.
+#
+# Memberi sumber kepada pemasang sebagai argumen adalah tindakan yang
+# sama sengajanya. Memasang dari X tetapi mengemas kini dari Y pula tidak
+# konsisten. Jadi apa yang anda beri itulah yang ditulis.
 #
 # Kegagalan di sini TIDAK membatalkan pemasangan: app sudah dipasang dan
 # berfungsi, dan guru boleh menetapkan sumber sendiri di Tetapan ▸ [1].
@@ -226,14 +235,20 @@ sumber = kemas.betulkan(sys.argv[2])
 cfg = store.baca_config()
 lama = (cfg.get("sumber_kemas") or "").strip()
 
-if lama:
-    print(f"  ! Sumber kemas kini sedia ada dikekalkan: {lama}")
-    if lama != sumber:
-        print(f"    Untuk tukar kepada {sumber}, guna Tetapan ▸ [1].")
+if lama == sumber:
+    # Sudah betul. Tiada tulisan, jadi tiada peluang merosakkan config.
+    print(f"  ✓ sumber kemas kini: {sumber}")
 else:
     cfg["sumber_kemas"] = sumber
     store.simpan_config(cfg)
-    print(f"  ✓ sumber kemas kini ditetapkan: {sumber}")
+    if lama:
+        # Ditukar, bukan ditetapkan. Kedua-dua nilai ditunjukkan supaya
+        # guru dapat mengesannya kalau ia bukan yang dijangkakan.
+        print("  ! Sumber kemas kini DITUKAR:")
+        print(f"      lama   : {lama}")
+        print(f"      baharu : {sumber}")
+    else:
+        print(f"  ✓ sumber kemas kini ditetapkan: {sumber}")
 PY
 then
     echo "  ! Tak dapat menetapkan sumber kemas kini."
