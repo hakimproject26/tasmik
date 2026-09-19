@@ -15,6 +15,10 @@
 #   pasang.sh           disalin dari alat/ — satu sumber, tiada salinan
 #                       yang boleh tak selaras dengan repo
 #
+# Keempat-empatnya kemudian DICERMIN ke GitHub Releases, supaya guru lain
+# boleh memasang tanpa bergantung pada pelayan rumah ini. Cermin itu
+# langkah terakhir, dan kegagalannya tidak membatalkan terbitan LAN.
+#
 # URUTAN LANGKAH DI SINI MENGIKAT. Setiap satu ada sebab, dan sebabnya
 # ditulis di tempatnya. Jangan susun semula tanpa membacanya.
 set -e
@@ -164,8 +168,82 @@ json.dump(
 print(f"  versi {versi.NOMBOR} ({versi.TARIKH})")
 PY
 
-# --------------------------------------------------------------- 9. lapor
+# -------------------------------------------------------- 9. cermin GitHub
+# Terbitan LAN di atas SUDAH SIAP dan lengkap pada titik ini. Langkah ini
+# hanya CERMIN, dan itu menjadikan sebab kegagalannya berbeza — jadi
+# pengendaliannya juga berbeza.
+#
+# `gh` yang TIADA dilangkau dengan amaran: mesin ini memang tidak
+# menyediakan cermin, dan terbitan LAN tetap berfungsi sepenuhnya.
+# `gh` yang ADA tetapi GAGAL pula ialah ralat: kalau tidak, guru menyangka
+# terbitan sudah naik ke GitHub sedangkan ia tidak — dan yang menunggu di
+# sana ialah guru LAIN, yang tiada cara lain untuk memasang.
+VERSI="$(python3 - "$SUMBER" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+from tasmik import versi
+print(versi.NOMBOR)
+PY
+)"
+
+# Dibaca daripada remote, bukan ditulis tetap. Dua tempat memegang nama
+# repo akan hanyut, dan hanyut di sini bermakna terbitan pergi ke repo
+# yang salah — atau ke tiada.
+REPO="$(cd "$SUMBER" && git remote get-url origin 2>/dev/null \
+        | sed -e 's#.*github\.com[:/]##' -e 's#\.git$##')" || true
+TAG="v$VERSI"
+
+if [ -z "$REPO" ]; then
+    echo "  ! Cermin GitHub dilangkau — repo ini tiada remote GitHub."
+elif ! command -v gh >/dev/null 2>&1; then
+    echo "  ! Cermin GitHub dilangkau — gh tiada (apt install gh)."
+elif ! gh auth status >/dev/null 2>&1; then
+    echo "  ! Cermin GitHub dilangkau — gh belum log masuk (gh auth login)."
+else
+    echo "Mencermin ke GitHub Releases — $TAG …"
+    # Empat-empat fail, bukan tiga. versi.json ialah yang memberitahu app
+    # sama ada ada kemas kini; tanpanya, URL itu menjawab 404 dan telefon
+    # tidak pernah tahu terbitan baharu wujud.
+    ASET=("$ARKIB" "$ARKIB.sig" "$TUJUAN/versi.json" "$TUJUAN/pasang.sh")
+
+    if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+        # Tag sudah wujud — binaan diulang untuk versi yang sama, selalunya
+        # kerana binaan pertama rosak. Aset DIGANTI.
+        #
+        # Itu selamat dari segi keselamatan: telefon menolak aset yang
+        # ditukar tanpa kunci rahsia, kerana tandatangan melindungi bait,
+        # bukan nama fail. Tetapi ia bermakna URL terbitan TIDAK KEKAL —
+        # dan itulah sebabnya README menyematkan pasang.sh kepada commit
+        # SHA dan bukan kepada tag.
+        echo "  ! $TAG sudah ada — asetnya akan diganti."
+        if ! gh release upload "$TAG" --repo "$REPO" --clobber "${ASET[@]}"; then
+            echo "Ralat: muat naik ke GitHub gagal." >&2
+            echo "       Terbitan LAN SUDAH SIAP dan boleh digunakan." >&2
+            exit 1
+        fi
+    else
+        if ! gh release create "$TAG" --repo "$REPO" \
+            --title "TASMIK $VERSI" \
+            --notes "Terbitan TASMIK $VERSI.
+
+Arkib kemas kini: tasmik.tar.gz, ditandatangani dengan tasmik.tar.gz.sig.
+Cap jari kunci: $(python3 "$ALAT/tanda.py" cap)
+
+Sumber kemas kini untuk Tetapan ▸ [1]:
+https://github.com/$REPO/releases/latest/download" \
+            "${ASET[@]}"
+        then
+            echo "Ralat: penciptaan terbitan GitHub gagal." >&2
+            echo "       Terbitan LAN SUDAH SIAP dan boleh digunakan." >&2
+            exit 1
+        fi
+    fi
+    echo "  ✓ https://github.com/$REPO/releases/tag/$TAG"
+fi
+
+# -------------------------------------------------------------- 10. lapor
 # Selepas semuanya siap, bukan di tengah jalan.
+echo
 ls -l "$ARKIB" "$ARKIB.sig" "$TUJUAN/versi.json" "$TUJUAN/pasang.sh"
 echo
 echo -n "Cap jari kunci: "
